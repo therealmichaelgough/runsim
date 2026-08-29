@@ -96,19 +96,27 @@ def predict_gait_2d(
     max_iterations: int = 2000,
     label: str | None = None,
     objective: str = "effort",
+    step_time_s: float | None = None,
 ) -> GaitPrediction:
     """Solve a predictive one-step gait problem; write solution, full
     stride, and GRFs into out_dir. Returns paths and solve metadata.
 
     objective: "effort" (cubed controls / distance) or "metabolic"
     (Bhargava cost of transport + small quadratic effort regularizer).
+
+    step_time_s: if given, the step duration is fixed to this value
+    instead of free within [0.18, 0.65] — i.e. the step frequency
+    (cadence) is imposed at 1/step_time_s Hz.
     """
     if objective not in ("effort", "metabolic"):
         raise ValueError("objective must be 'effort' or 'metabolic'")
+    if step_time_s is not None and not (0.18 <= step_time_s <= 0.65):
+        raise ValueError("step_time_s outside the plausible [0.18, 0.65] s bracket")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     label = label or (
         f"v{speed_ms:g}_g{grade:+g}".replace("+", "p").replace("-", "m").replace(".", "_")
+        + (f"_c{1 / step_time_s:.2f}".replace(".", "_") if step_time_s else "")
         + ("_met" if objective == "metabolic" else "")
     )
 
@@ -148,8 +156,11 @@ def predict_gait_2d(
         effort.setDivideByDisplacement(True)
         problem.addGoal(effort)
 
-    # step duration bracket: generous around the Tier-1 fitted cadence
-    problem.setTimeBounds(0, [0.18, 0.65])
+    if step_time_s is not None:
+        problem.setTimeBounds(0, step_time_s)  # imposed cadence
+    else:
+        # step duration bracket: generous around the Tier-1 fitted cadence
+        problem.setTimeBounds(0, [0.18, 0.65])
     _set_running_bounds(problem, grade)
 
     solver = study.initCasADiSolver()

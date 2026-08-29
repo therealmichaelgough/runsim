@@ -31,3 +31,11 @@ def test_walking_summary_is_not_aerial():
 def test_summary_fields():
     s = solution_summary(PHASE0_GRF)
     assert {"stride_time_s", "contact_time_s", "flight_fraction", "peak_force_bw"} <= set(s)
+
+
+def test_step_time_outside_bracket_rejected():
+    from runsim.tier3 import predict_gait_2d
+
+    for bad in (0.1, 0.7):  # outside the [0.18, 0.65] s step-duration bracket
+        with pytest.raises(ValueError):
+            predict_gait_2d(3.0, step_time_s=bad)
