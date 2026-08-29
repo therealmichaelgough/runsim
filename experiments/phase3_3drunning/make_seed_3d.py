@@ -12,7 +12,6 @@ Outputs land next to this script:
   grf_v3.xml / (local GRF .mot is referenced in place)
   seed3d_tracking.sto     - the tracking solution (the seed)
 """
-import re
 from pathlib import Path
 
 import opensim as osim
@@ -62,22 +61,14 @@ GRF_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def cycle_window(states_path: Path) -> tuple[float, float]:
-    """Time range of an RRA cycle from its SIMM header (`range a b`)."""
-    text = states_path.with_name(
-        states_path.name.replace("_states.sto", "_Kinematics_q.sto")
-    ).read_text().split("endheader")[0]
-    m = re.search(r"range\s+([\d.]+)\s+([\d.]+)", text)
-    if not m:
-        raise ValueError(f"no range header in {states_path}")
-    return float(m.group(1)), float(m.group(2))
-
-
 def main(mesh_intervals: int = 50, max_iterations: int = 2000) -> None:
     model = build_running_model(MODEL, out_path=HERE / "lai_running_model.osim")
     model.initSystem()
     states_ref = write_states_reference(RRA_CYCLE, model, HERE / "states_ref_v3.sto")
-    t0, t1 = cycle_window(RRA_CYCLE)
+    # track exactly the window the (decimated) reference covers
+    ref = osim.TimeSeriesTable(str(states_ref))
+    times = ref.getIndependentColumn()
+    t0, t1 = times[0], times[ref.getNumRows() - 1]
 
     grf_xml = HERE / "grf_v3.xml"
     grf_xml.write_text(GRF_XML_TEMPLATE.format(datafile=GRF_MOT.resolve()))
@@ -102,14 +93,18 @@ def main(mesh_intervals: int = 50, max_iterations: int = 2000) -> None:
 
     contact = osim.MocoContactTrackingGoal("contact", 1.0)
     contact.setExternalLoadsFile(str(grf_xml))
-    right = osim.StdVectorString()
-    for f in CONTACT_FORCES_RIGHT:
-        right.append(f)
-    contact.addContactGroup(right, "Right_GRF")
-    left = osim.StdVectorString()
-    for f in CONTACT_FORCES_LEFT:
-        left.append(f)
-    contact.addContactGroup(left, "Left_GRF")
+    for paths, ext_name, alt_frame in (
+        (CONTACT_FORCES_RIGHT, "Right_GRF", "/bodyset/toes_r"),
+        (CONTACT_FORCES_LEFT, "Left_GRF", "/bodyset/toes_l"),
+    ):
+        forces = osim.StdVectorString()
+        for f in paths:
+            forces.append(f)
+        group = osim.MocoContactTrackingGoalGroup(forces, ext_name)
+        # the toe sphere sits on the toes body while the measured GRF is
+        # applied to the calcaneus; let the goal accept both frames
+        group.append_alternative_frame_paths(alt_frame)
+        contact.addContactGroup(group)
     problem.addGoal(contact)
 
     solver = osim.MocoCasADiSolver.safeDownCast(study.updSolver())

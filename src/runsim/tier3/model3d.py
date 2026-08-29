@@ -36,8 +36,8 @@ CONTACT_PARAMS = dict(
     transition_velocity=0.2,
 )
 
-#: contact force names per side, for MocoContactTrackingGoal groups
-CONTACT_FORCES_RIGHT = [f"contact_{name}" for name, *_ in _RIGHT_SPHERES]
+#: contact force paths per side, for MocoContactTrackingGoal groups
+CONTACT_FORCES_RIGHT = [f"/forceset/contact_{name}" for name, *_ in _RIGHT_SPHERES]
 CONTACT_FORCES_LEFT = [f.replace("_r", "_l") for f in CONTACT_FORCES_RIGHT]
 
 

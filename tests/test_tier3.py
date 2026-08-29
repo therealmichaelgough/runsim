@@ -77,5 +77,5 @@ def test_running_model_has_contacts():
     model.initSystem()
     force_names = {model.getForceSet().get(i).getName()
                    for i in range(model.getForceSet().getSize())}
-    assert set(CONTACT_FORCES_RIGHT + CONTACT_FORCES_LEFT) <= force_names
+    assert {p.rsplit("/", 1)[-1] for p in CONTACT_FORCES_RIGHT + CONTACT_FORCES_LEFT} <= force_names
     assert model.getMuscles().get(0).getConcreteClassName() == "DeGrooteFregly2016Muscle"
