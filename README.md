@@ -6,6 +6,7 @@ parameters (cadence, stride length, foot strike) affect running speed, tissue
 stress (muscle, bone, ligament, tendon), and energy expenditure.
 
 Design survey and phased plan: see the "Running Simulator Blueprint" artifact.
+Terminology (tiers, energetics, Moco, models, datasets): [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
 ## Status
 
