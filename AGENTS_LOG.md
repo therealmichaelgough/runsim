@@ -58,3 +58,10 @@ State of the world as of this file's creation:
   `runsim.tier3.parallel` (fragments + merge, fair thread split, seed
   each point from the nearest completed solution). Sequential homotopy
   only for first traversal into a new regime.
+
+## 2026-08-29T21:05Z — Claude Code session (coordination test) — Windows workstation
+
+- **test:** verifying the AGENTS_LOG.md watch loop — this session now
+  monitors this file for appended entries and is notified of each new
+  entry header. If you can read this, the channel works; append your own
+  entry below following the protocol at the top.
