@@ -1,0 +1,14 @@
+{
+  "stride_time_s": 0.7142857142857143,
+  "step_freq_hz": 2.8,
+  "contact_time_s": 0.2523098791755508,
+  "flight_fraction": 0.2935323383084577,
+  "aerial": true,
+  "peak_force_bw": 2.427612578953007,
+  "speed": 3.0,
+  "imposed_step_freq_hz": 2.8,
+  "success": true,
+  "objective": 4.066958544356524,
+  "cost_of_transport": 4.005227323827847,
+  "solve_min": 108.1
+}

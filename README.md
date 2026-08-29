@@ -50,8 +50,17 @@ read it before starting, log long-running jobs and findings there.
   polynomial across the whole ±16% range, mostly within 2–8% (slight
   systematic undershoot; −9° short by ~17% — eccentric cost under-priced),
   with physiological uphill mechanics (lower peaks, quicker steps) and an
-  exaggerated downhill impact artifact (up to 6.5 BW). Next:
-  cadence-constraint experiments and the 3D LaiUhlrich model.
+  exaggerated downhill impact artifact (up to 6.5 BW). **Cadence sweep
+  done** (`run_cadence_sweep.py` + parallel workers, 2.6–4.4 Hz at
+  3.0 m/s): the model's COT-vs-cadence bowl bottoms at 3.8–4.0 Hz —
+  confirming its free choice (3.82 Hz) is a genuine optimum of the 2D
+  cost landscape, not a solver artifact — while at human-preferred
+  cadence (2.8–2.9 Hz) stance mechanics essentially match measurement
+  (t_c 250–252 ms vs 244; peak 2.39–2.43 BW vs 2.31) at a 12–15% COT
+  penalty. Interpretation: the 2D model misprices low cadence (missing
+  leg-swing/internal-work cost), not stance mechanics
+  (`experiments/phase3_cadence_analysis.png`). Next: the 3D LaiUhlrich
+  model (seed pipeline in `experiments/phase3_3drunning/`).
 
 ## Architecture (planned)
 
