@@ -21,6 +21,13 @@ survey/plan.
    references its bundled gfortran via absolute /opt/homebrew paths and
    Moco's IPOPT solver won't load without the patch. Re-run after every
    pip install/upgrade of opensim. Linux wheels don't need this.
+   **Windows only:** run `.venv\Scripts\python.exe scripts\fix_opensim_dlls_windows.py`
+   — CasADi loads its IPOPT plugin via PATH, not Python's DLL dirs, so Moco
+   fails with "Plugin 'ipopt' is not found" without it. It installs a
+   sitecustomize.py in the venv; re-run after every pip install/upgrade of
+   opensim. Also: git checks out the LaiArnold2017 geometry symlinks as text
+   stubs on Windows — replace each stub with a copy of the file it names
+   (targets are in models/LaiUhlrich2022/Geometry).
 4. Verify: `.venv/bin/python scripts/smoke_test_moco.py` (must print
    "Moco toolchain OK") and `.venv/bin/python -m pytest tests/ -q`
    (dataset tests auto-skip until data is downloaded).
