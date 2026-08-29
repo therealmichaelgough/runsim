@@ -8,6 +8,9 @@ stress (muscle, bone, ligament, tendon), and energy expenditure.
 Design survey and phased plan: see the "Running Simulator Blueprint" artifact.
 Terminology (tiers, energetics, Moco, models, datasets): [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
+AI agents working in this repo: coordinate through [AGENTS_LOG.md](AGENTS_LOG.md) —
+read it before starting, log long-running jobs and findings there.
+
 ## Status
 
 - **Phase 0 (foundation) — done.** OpenSim 4.6 + Moco verified end-to-end on

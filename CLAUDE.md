@@ -1,5 +1,10 @@
 # CLAUDE.md — resuming this project
 
+**FIRST: read `AGENTS_LOG.md` (repo root) — the shared coordination log
+for AI agents. It records what is currently running (long solves, PIDs,
+chained jobs), what is claimed, and recent findings. Append your own
+entries there when you start/finish long work.**
+
 Human running simulator: predicts how environment (slope, wind, altitude,
 surface) and gait (cadence, foot strike) affect speed, tissue loads, and
 energy cost. Four tiers: closed-form energetics (tier0) → spring-mass GRF
@@ -56,6 +61,13 @@ survey/plan.
   (`experiments/phase3_2drunning/make_seed.py`, ~20 s) and chain solutions
   across speeds/grades (homotopy). Pass a near-converged (iteration-capped)
   solution forward as a guess whenever its objective is sane (< 50).
+- **Sweeps run parallel by default** (`runsim.tier3.parallel`): one
+  process per point, each seeded from the nearest *completed* solution,
+  threads split fairly via OPENSIM_MOCO_PARALLEL, per-point fragment
+  JSONs merged into the sweep log afterwards. Wall-clock ≈ slowest single
+  solve instead of the sum. Reserve sequential homotopy chains for the
+  first traversal into a new regime (nothing close enough to seed from).
+  Log launched PIDs and chained finishers in AGENTS_LOG.md.
 - `analyzeMocoTrajectory` output paths are **regex patterns**
   (`.*total_metabolic_rate`), not literal `/component|output` paths — a
   literal `|` path returns an empty table.

@@ -70,6 +70,26 @@ def test_retarget_hamner_to_lai():
     assert np.degrees(knee.min()) > -15
 
 
+def test_parallel_sweep_helpers(tmp_path):
+    import json
+
+    from runsim.tier3.parallel import merge_fragments, threads_per_point
+
+    assert threads_per_point(5, total=64) == 12
+    assert threads_per_point(100, total=64) == 1  # never zero
+
+    frag_dir = tmp_path / "fragments"
+    frag_dir.mkdir()
+    (frag_dir / "a.json").write_text(json.dumps({"key": "a", "x": 2.0}))
+    (frag_dir / "b.json").write_text(json.dumps({"key": "b", "x": 1.0}))
+    (frag_dir / "a.spec.json").write_text("{}")  # specs must be ignored
+    log = tmp_path / "log.json"
+    log.write_text(json.dumps([{"key": "a", "x": 2.0}]))  # dedup: 'a' exists
+    assert merge_fragments(tmp_path, log, sort_by="x") == 1
+    merged = json.loads(log.read_text())
+    assert [r["key"] for r in merged] == ["b", "a"]  # sorted by x
+
+
 def test_running_model_has_contacts():
     from runsim.tier3.model3d import CONTACT_FORCES_LEFT, CONTACT_FORCES_RIGHT, build_running_model
 
