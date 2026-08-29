@@ -1,0 +1,12 @@
+{
+  "source": "Fukuchi 2017 treadmill dataset, fitted by scripts/fit_tier1_params.py",
+  "n_trials": 83,
+  "contact_length_m": {
+    "intercept": 0.43413224875839884,
+    "slope_per_ms": 0.09981540315512707
+  },
+  "step_freq_hz": {
+    "intercept": 2.1843062695325615,
+    "slope_per_ms": 0.20066108560917623
+  }
+}

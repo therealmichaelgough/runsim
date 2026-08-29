@@ -1,0 +1,80 @@
+[
+  {
+    "stride_time_s": 0.560184855771788,
+    "step_freq_hz": 3.570250033347517,
+    "contact_time_s": 0.23132011457242987,
+    "flight_fraction": 0.17412935323383086,
+    "aerial": true,
+    "peak_force_bw": 2.5120338311360872,
+    "speed": 2.5,
+    "success": false,
+    "objective": 3.482,
+    "cost_of_transport": 3.37,
+    "solve_min": 32.5
+  },
+  {
+    "stride_time_s": 0.5240747112148394,
+    "step_freq_hz": 3.8162497773721413,
+    "contact_time_s": 0.1929429285069558,
+    "flight_fraction": 0.263681592039801,
+    "aerial": true,
+    "peak_force_bw": 2.686474351747458,
+    "speed": 3.0,
+    "success": false,
+    "objective": 3.53926267292024,
+    "cost_of_transport": 3.4903833125906876,
+    "solve_min": 32.78
+  },
+  {
+    "stride_time_s": 0.4951813684669662,
+    "step_freq_hz": 4.038924174776218,
+    "contact_time_s": 0.17245122284919223,
+    "flight_fraction": 0.3034825870646766,
+    "aerial": true,
+    "peak_force_bw": 2.716569813337539,
+    "speed": 3.5,
+    "success": true,
+    "objective": 3.801818437988336,
+    "cost_of_transport": 3.7411046457099206,
+    "solve_min": 33.33
+  },
+  {
+    "stride_time_s": 0.4824115578690184,
+    "step_freq_hz": 4.145837651226069,
+    "contact_time_s": 0.1512036226156625,
+    "flight_fraction": 0.373134328358209,
+    "aerial": true,
+    "peak_force_bw": 2.863313500454007,
+    "speed": 4.0,
+    "success": true,
+    "objective": 4.404443969486941,
+    "cost_of_transport": 4.317024283768668,
+    "solve_min": 17.11
+  },
+  {
+    "stride_time_s": 0.4690647289750915,
+    "step_freq_hz": 4.26380385574931,
+    "contact_time_s": 0.1353520113460463,
+    "flight_fraction": 0.4228855721393035,
+    "aerial": true,
+    "peak_force_bw": 3.396578050164528,
+    "speed": 4.5,
+    "success": true,
+    "objective": 5.606317167773566,
+    "cost_of_transport": 5.453656051142002,
+    "solve_min": 12.8
+  },
+  {
+    "stride_time_s": 0.4763499848476986,
+    "step_freq_hz": 4.198593604740959,
+    "contact_time_s": 0.10901541941788127,
+    "flight_fraction": 0.5422885572139303,
+    "aerial": true,
+    "peak_force_bw": 4.611442609930877,
+    "speed": 5.0,
+    "success": true,
+    "objective": 6.695670456248557,
+    "cost_of_transport": 6.298365649434447,
+    "solve_min": 10.42
+  }
+]

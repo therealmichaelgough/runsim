@@ -1,0 +1,21 @@
+[project]
+name = "runsim"
+version = "0.1.0"
+description = "Simulator for anatomically-accurate human running: effects of environment and gait parameters on speed, tissue loads, and energy cost"
+requires-python = ">=3.12"
+dependencies = [
+    "opensim>=4.6",
+    "numpy",
+    "pandas",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,98 @@
+[
+  {
+    "stride_time_s": 0.9957334381137702,
+    "step_freq_hz": 2.008569686871844,
+    "contact_time_s": 0.5796060311408513,
+    "flight_fraction": 0.0,
+    "aerial": false,
+    "peak_force_bw": 2.1394063481578245,
+    "speed": 1.2,
+    "success": true,
+    "objective": 0.1175227286444133,
+    "solve_min": 6.42
+  },
+  {
+    "stride_time_s": 0.6486130801333251,
+    "step_freq_hz": 3.0835024165545533,
+    "contact_time_s": 0.3485085206686523,
+    "flight_fraction": 0.0,
+    "aerial": false,
+    "peak_force_bw": 2.637529754480949,
+    "speed": 2.0,
+    "success": true,
+    "objective": 0.3505946837437384,
+    "solve_min": 2.83
+  },
+  {
+    "stride_time_s": 0.5250180042056951,
+    "step_freq_hz": 3.8093931712414695,
+    "contact_time_s": 0.25336689755200215,
+    "flight_fraction": 0.03482587064676617,
+    "aerial": true,
+    "peak_force_bw": 2.736932010469828,
+    "speed": 2.5,
+    "success": true,
+    "objective": 0.8009474061640164,
+    "solve_min": 3.14
+  },
+  {
+    "stride_time_s": 0.491276977208517,
+    "step_freq_hz": 4.071023257316458,
+    "contact_time_s": 0.20530978151997725,
+    "flight_fraction": 0.16417910447761194,
+    "aerial": true,
+    "peak_force_bw": 2.7521141900479926,
+    "speed": 3.0,
+    "success": true,
+    "objective": 1.5396498825351905,
+    "solve_min": 2.54
+  },
+  {
+    "stride_time_s": 0.466090310195339,
+    "step_freq_hz": 4.291013900636119,
+    "contact_time_s": 0.17391429484900708,
+    "flight_fraction": 0.2537313432835821,
+    "aerial": true,
+    "peak_force_bw": 2.967335481280811,
+    "speed": 3.5,
+    "success": false,
+    "objective": 2.664679236531389,
+    "solve_min": 24.84
+  },
+  {
+    "stride_time_s": 0.452586972020563,
+    "step_freq_hz": 4.419040148396342,
+    "contact_time_s": 0.14635897105142587,
+    "flight_fraction": 0.35323383084577115,
+    "aerial": true,
+    "peak_force_bw": 3.3708922200356723,
+    "speed": 4.0,
+    "success": true,
+    "objective": 4.368726485397403,
+    "solve_min": 22.94
+  },
+  {
+    "stride_time_s": 0.4410268450922012,
+    "step_freq_hz": 4.534871340047066,
+    "contact_time_s": 0.12945564109671578,
+    "flight_fraction": 0.4129353233830846,
+    "aerial": true,
+    "peak_force_bw": 3.5458423238696897,
+    "speed": 4.5,
+    "success": true,
+    "objective": 7.158369002338285,
+    "solve_min": 3.07
+  },
+  {
+    "stride_time_s": 0.4658411664236177,
+    "step_freq_hz": 4.293308844631559,
+    "contact_time_s": 0.10892803393985091,
+    "flight_fraction": 0.5323383084577115,
+    "aerial": true,
+    "peak_force_bw": 4.52000608409879,
+    "speed": 5.0,
+    "success": true,
+    "objective": 12.892468545700348,
+    "solve_min": 13.24
+  }
+]
