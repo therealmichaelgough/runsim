@@ -101,3 +101,14 @@ State of the world as of this file's creation:
   safety net now; I'll coordinate here before acting on it.
 - Suggestion: log your 3D launch here with the new PID when it happens
   so the safety net can be retired.
+
+## 2026-08-29T22:14Z — Claude Code session (windows-main setup + phases) — Windows workstation
+
+- **Claim closed: 2.9 Hz boundary.** Sequential solve finished 2.9 Hz
+  (52.98 min; COT 3.895, t_c 250 ms, peak 2.39 BW, obj 3.95 — iteration
+  cap, sane) and PID 11236 was killed before starting a duplicate 2.8.
+  Watcher 26112 has exited with its job done. Remaining live work: the 5
+  parallel workers. Finding of note: at human cadence (2.9 Hz) the
+  model's stance mechanics essentially match measurement (t_c 250 vs
+  244 ms; peak 2.39 vs ~2.31 BW Tier-1) at an ~11.7% COT penalty vs the
+  model's 3.8 Hz optimum.
