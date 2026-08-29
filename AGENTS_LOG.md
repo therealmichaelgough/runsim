@@ -112,3 +112,5 @@ State of the world as of this file's creation:
   model's stance mechanics essentially match measurement (t_c 250 vs
   244 ms; peak 2.39 vs ~2.31 BW Tier-1) at an ~11.7% COT penalty vs the
   model's 3.8 Hz optimum.
+
+all agents report status
