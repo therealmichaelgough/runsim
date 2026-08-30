@@ -78,12 +78,52 @@ def retarget_states(
     return out
 
 
+def ground_reference(
+    table: osim.TimeSeriesTable,
+    model: osim.Model,
+    clearance: float = 0.024,
+) -> float:
+    """Shift the pelvis_ty reference so the lowest stance foot reaches
+    contact height. Retargeting onto an unscaled model leaves a
+    limb-length gap (feet floating ~0.1 m); the smooth contact force has
+    near-zero gradient at that distance, so a tracking solve otherwise
+    converges to a ballistic, contact-free gait. clearance is the calcn
+    height at which the heel sphere touches the floor. Returns the drop
+    applied (m)."""
+    state = model.initSystem()
+    labels = list(table.getColumnLabels())
+    coords = model.getCoordinateSet()
+    lowest = np.inf
+    for i in range(table.getNumRows()):
+        row = table.getRowAtIndex(i)
+        for k in range(coords.getSize()):
+            c = coords.get(k)
+            lab = f"{c.getAbsolutePathString()}/value"
+            if lab in labels:
+                c.setValue(state, float(row[labels.index(lab)]), False)
+        model.assemble(state)
+        model.realizePosition(state)
+        for body in ("calcn_l", "calcn_r"):
+            lowest = min(lowest, model.getBodySet().get(body)
+                         .getPositionInGround(state).get(1))
+    drop = lowest - clearance
+    ty = next(lab for lab in labels if "pelvis_ty/value" in lab)
+    j = labels.index(ty)
+    for i in range(table.getNumRows()):
+        table.getRowAtIndex(i)[j] -= drop
+    return drop
+
+
 def write_states_reference(
     states_path: str | Path,
     model: osim.Model,
     out_path: str | Path,
     decimate: int = 10,
+    ground: bool = True,
 ) -> Path:
     table = retarget_states(states_path, model, decimate=decimate)
+    if ground:
+        drop = ground_reference(table, model)
+        print(f"[retarget] grounded reference: pelvis_ty shifted by {-drop:+.3f} m")
     osim.STOFileAdapter.write(table, str(out_path))
     return Path(out_path)
