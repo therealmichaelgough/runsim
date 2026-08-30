@@ -6,10 +6,13 @@ variable-slope terrain, with a chase camera and user-controlled speed. It is
 the 3D counterpart of `docs/run_viewer.html`, implementing
 `docs/unreal_renderer_plan.md`.
 
-**Status: authored but never compiled.** Neither Unreal Engine nor MSVC is
-installed on the machine that wrote this code, so the C++ has been
-self-reviewed but not built. The Python exporter and its tests *are* run and
-passing. Read "What is verified" below before trusting anything here.
+**Status: built and running.** As of 2026-08-30 this compiles clean and renders
+on the Windows workstation: **Unreal Engine 5.8.2** (`D:\unreal\UE_5.8`) with
+**MSVC 14.44** and the Windows 10.0.22621 SDK. The first build succeeded with
+zero errors and zero warnings — the 5.4-era code needed no changes for 5.8, and
+the legacy input path (`Config/DefaultInput.ini` +
+`DefaultPlayerInputClass=/Script/Engine.PlayerInput`) still works. The Python
+exporter and its tests are run and passing.
 
 ## What is in the box
 
@@ -53,9 +56,15 @@ and two directional lights itself.
    **Development Editor / Win64**, and build the `RunsimViewer` target.
    Equivalent from a command line:
    ```
-   "C:\Program Files\Epic Games\UE_5.4\Engine\Build\BatchFiles\Build.bat" ^
+   "D:\unreal\UE_5.8\Engine\Build\BatchFiles\Build.bat" ^
        RunsimViewerEditor Win64 Development ^
        -Project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -WaitMutex
+   ```
+   To skip the editor and go straight to the render in a window:
+   ```
+   "D:\unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" ^
+       "D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" ^
+       -game -windowed -resx=1600 -resy=900
    ```
 5. **Open** `RunsimViewer.uproject` (double-click, or F5 from Visual Studio).
    The editor opens on `/Engine/Maps/Entry`, an empty engine map.
@@ -106,16 +115,26 @@ tolerate gaits that lack those bodies (the segments stay hidden).
   foot 16.4 cm, upper arm 28.7 cm, forearm 25.3 cm);
 - the 3.0 m/s flat gait's cadence is 3.82 Hz (the M2 acceptance number).
 
-**Not verified**: everything in `Source/`. It has been reviewed line by line
-against the UE 5.4 API, but it has never been through a compiler. Expect to
-spend the first ten minutes fixing whatever this review missed. The most
-likely candidates, in order:
+**Verified by building and running it** (UE 5.8.2, 2026-08-30):
 
-1. an include or an API signature that moved between engine versions;
-2. `BasicShapeMaterial` having no `Color` parameter, in which case everything
-   renders default grey (harmless: `SetVectorParameterValue` on a missing
-   parameter is a no-op — the fix is one material asset);
-3. `/Engine/Maps/Entry` not existing or not being what this assumes.
+- everything in `Source/` compiles and links with zero errors and zero warnings;
+- `/Engine/Maps/Entry` exists and `ARunsimGameMode` populates it — the game log
+  reports `spawned runsim scene (terrain, runner, lights)`;
+- the data path works end to end: `gaits_ue.json: 14 gaits, 13 segments,
+  8 bodies, 48 frames, speed 1.20-5.00 m/s, arms absent`, and the four arm
+  segments hide themselves as intended.
+
+**Known cosmetic defect**: the engine logs
+
+```
+Material /Engine/BasicShapes/BasicShapeMaterial missing usage flag SplineMeshes!
+Default Material will be used in game.
+```
+
+so the terrain ribbon renders in the engine default material rather than the
+alternating dark-blue shades (the runner capsules are unaffected). The fix is to
+tick `bUsedWithSplineMeshes` on a material **asset**, which this text-only repo
+cannot express — see the deviations table above.
 
 ## M1 verification — geometry against OpenSim
 
@@ -182,10 +201,14 @@ Two more notes, not deviations:
 
 ## Milestone coverage
 
-| # | Plan deliverable | Where it lives | Runnable here? |
+| # | Plan deliverable | Where it lives | Builds + runs? |
 |---|---|---|---|
-| M1 | Exporter + first-frame render | `scripts/export_ue_gaits.py`, `ARunsimRunner::BeginPlay` | exporter yes, render no |
-| M2 | Single gait looping | `URunsimGaitData::SampleGait`, `ARunsimRunner::Tick` | no |
-| M3 | Speed blending + input | `URunsimGaitData::GetBlendedPose`, `ARunsimPawn` | no |
-| M4 | Terrain + slope blending + chase camera | `RunsimTerrainMath.h`, `ARunsimTerrain`, `ARunsimPawn` | no |
-| M5 | HUD + orbit camera | `ARunsimHUD`, `ARunsimPawn::InputTurn` | no |
+| M1 | Exporter + first-frame render | `scripts/export_ue_gaits.py`, `ARunsimRunner::BeginPlay` | yes |
+| M2 | Single gait looping | `URunsimGaitData::SampleGait`, `ARunsimRunner::Tick` | yes |
+| M3 | Speed blending + input | `URunsimGaitData::GetBlendedPose`, `ARunsimPawn` | yes |
+| M4 | Terrain + slope blending + chase camera | `RunsimTerrainMath.h`, `ARunsimTerrain`, `ARunsimPawn` | yes |
+| M5 | HUD + orbit camera | `ARunsimHUD`, `ARunsimPawn::InputTurn` | yes |
+
+"Builds + runs" means the code compiles and the scene loads with the gait data;
+the M1 pose comparison and the M2 cadence readout are eyeball checks, described
+above.

@@ -529,3 +529,95 @@ winget install --id Microsoft.DotNet.Framework.DeveloperPack_4 --exact --silent 
   already at 5.8 (commit `128925b`). After the SDK lands, the two commands at
   the end of the 04:35Z entry take it from build to a windowed render, and the
   5.4-authored `Source/` still has to survive its first-ever compile under 5.8.
+
+## 2026-08-30T07:05Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claim closed: scaled-model grazing solve REJECTED** (attempt 3;
+  flight again, 7h18m iteration cap, contact 932/953). Diagnosis is now
+  formulation, not geometry: a grazing reference is force-free at the
+  guess, and the feasible manifold near a force-free guess is ballistic.
+- **Fix (3dcf114) + RUNNING (claimed): attempt 4** — PID 20328,
+  penetrating grounded reference (clearance 0.013 m -> 2.65 BW at the
+  deepest stance pose, pre-flight verified). Same logs. GOTCHA for
+  CLAUDE.md once validated: when tracking with sphere contact, ground
+  the reference INTO the floor so the guess carries measured-scale
+  contact force; grazing references produce flying solutions.
+- UE stage 4 still blocked on the user's UAC click (.NET SDK); NETFXSDK
+  watch re-armed.
+
+## 2026-08-30T19:10Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **CLAIM CLOSED — the renderer is running on screen.** Full chain works:
+  toolchain -> UE 5.8.2 -> build -> windowed render.
+
+**The headline: the C++ compiled clean on the first attempt.**
+
+`Result: Succeeded`, 73.6 s, 14 actions, **zero errors and zero warnings** — all
+11 translation units (`RunsimViewer.cpp`, `RunsimGaitData.cpp`, `RunsimRunner.cpp`,
+`RunsimTerrain.cpp`, `RunsimPawn.cpp`, `RunsimHUD.cpp`, `RunsimGameMode.cpp`, the
+UHT-generated files) compiled and linked to `UnrealEditor-RunsimViewer.dll`.
+**No source fixes were needed, so no fix commits exist.** The 02:42Z entry's
+"assume a first build needs fixes" turned out to be pessimistic; the line-by-line
+5.4 self-review held, and the anticipated 5.8 casualty (legacy
+`BindAxis`/`BindAction` + `DefaultPlayerInputClass=/Script/Engine.PlayerInput`)
+did **not** materialise — that path still compiles under 5.8.
+
+Toolchain actually selected: MSVC **14.44.35228** (from
+`...\MSVC\14.44.35207`) + Windows SDK **10.0.22621.0**. So 5.8 accepts 14.44 and
+the 14.38 toolset was never needed.
+
+**Runtime verification (game log `unreal/RunsimViewer/Saved/Logs/RunsimViewer.log`)**
+
+```
+LogRunsim: spawned runsim scene (terrain, runner, lights)
+LogRunsim: gaits_ue.json: 14 gaits, 13 segments, 8 bodies, 48 frames,
+           speed 1.20-5.00 m/s, arms absent
+LogRunsim: segment 'upperarm_l' hidden: no gait provides body 'humerus_l'   (x4)
+```
+
+**14 gaits loaded**, all as designed; the four arm segments hide themselves
+exactly as the 2D-sourced-data path intends. Process PID 21520, window title
+`RunsimViewer (64-bit Development PCD3D_SM5)`, **alive well past 30 s** (69 s CPU,
+2.4 GB WS) and still up. Launched at normal priority — it is the interactive
+deliverable and one game process does not threaten a solve on 32 physical cores;
+Moco **PID 20328 is alive and unaffected**. The *build* was BelowNormal as asked.
+
+**M2 — for the user to eyeball:** at 3.0 m/s on flat ground the HUD must read
+**229 spm (3.82 Hz)**. `strideTime = 0.5241 s` for `fullstride_v3_gp0_met.sto`
+and the HUD computes `120/strideTime`, so 229 is the arithmetic certainty; what
+the eyeball adds is that the HUD is wired to the right gait. README says
+"228/3.80" — same number, rounded differently, **not** a failure.
+
+**One cosmetic defect, not worth a hack:**
+
+```
+LogMaterial: Warning: Material /Engine/BasicShapes/BasicShapeMaterial
+missing usage flag SplineMeshes! Default Material will be used in game.
+```
+
+The terrain ribbon therefore renders in the engine default material instead of
+the alternating dark-blue shades — the runner capsules are unaffected. Fixing it
+means ticking `bUsedWithSplineMeshes` on an engine **asset**, which this
+text-only repo cannot express. It is a 15-second editor fix, or one small
+material asset, whenever someone wants the ground to look right. Same family as
+the deviations table's material caveat in `unreal/README.md`.
+
+**Relaunch command (nothing else needed — the binary is built):**
+
+```
+"D:\unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -game -windowed -resx=1600 -resy=900
+```
+
+Rebuild after editing `Source/`:
+
+```
+"D:\unreal\UE_5.8\Engine\Build\BatchFiles\Build.bat" RunsimViewerEditor Win64 Development -project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -waitmutex
+```
+
+Controls: `W`/`S` speed, `H`/`F` hills, `Space` pause, right-mouse orbit, wheel
+zoom, `R` reset view.
+
+**Still open, for the 3D-phase owner (not mine):** `seed3d_tracking.sto` was
+written with `success=False, objective=519.201` — unconverged, so `GAITS_3D` in
+`scripts/export_ue_gaits.py` should stay empty and the arms stay hidden until a
+converged 3D solve lands.
