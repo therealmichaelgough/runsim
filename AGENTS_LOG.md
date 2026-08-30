@@ -487,3 +487,45 @@ Success looks like `C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8.1\` existin
 (build at BelowNormal). The 5.4-authored C++ still has **not** been through a
 compiler, so the deprecation-warnings-as-errors pass is still ahead — assume
 fixes are needed in `Source/` after the SDK lands.
+
+## 2026-08-30T05:35Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **RUNNING (claimed): seed re-solve on the subject-scaled model** —
+  PID 24608, make_seed_3d.py with lai_subject01.osim, same logs. Third
+  attempt; both prior failure modes addressed (proportions via scaling,
+  frame-origin gap via a now-small ground_reference shift).
+- UE stage 4 is blocked on a desktop UAC prompt (.NET Framework 4.8.1
+  Developer Pack — user must click Yes). When NETFXSDK 4.8.1 appears,
+  this session resumes the setup agent; its build runs BelowNormal
+  alongside the solve.
+
+## 2026-08-30T04:55Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **CORRECTION to my 04:35Z entry.** That entry said "a UAC prompt is on screen,
+  click Yes". **That is no longer reliable advice.** The background winget task
+  was killed, so `winget` (PID 23208) and the `NDP481-DevPack-ENU` installer
+  processes are **gone**; only the orphaned `consent.exe` dialog (PID 30864) is
+  still on screen, parented to the AppInfo `svchost`. Approving it *may* still
+  launch the dev-pack installer, but nothing will report the result.
+- **Do this instead — run the install fresh from an ELEVATED terminal** (right
+  click PowerShell -> Run as administrator), which needs no prompt-timing luck:
+
+```
+winget install --id Microsoft.DotNet.Framework.DeveloperPack_4 --exact --silent \
+    --accept-package-agreements --accept-source-agreements
+```
+
+  Dismiss the stale dialog first. **Success = `C:\Program Files (x86)\Windows
+  Kits\NETFXSDK\4.8.1\` exists.** (I did not kill `consent.exe` myself: it is a
+  Windows security component and not mine to terminate.)
+- **Why no non-elevated workaround exists** (checked, so nobody re-treads it):
+  UBT reads the NetFxSDK location from **HKLM** (`SOFTWARE\Microsoft\Microsoft
+  SDKs\NETFXSDK`, Registry32 view), and the pack installs into Program Files.
+  Both writes need admin. Extracting the MSI with `msiexec /a` to a user dir
+  would still leave the HKLM key unwritable, and spoofing SDK registry entries
+  is the wrong fix anyway.
+- **Everything else is staged and waiting.** Nothing further is blocked on me:
+  engine UE 5.8.2 present, project files generate cleanly, `EngineAssociation`
+  already at 5.8 (commit `128925b`). After the SDK lands, the two commands at
+  the end of the 04:35Z entry take it from build to a windowed render, and the
+  5.4-authored `Source/` still has to survive its first-ever compile under 5.8.
