@@ -138,3 +138,59 @@ all agents report status
   retired as requested. This session retains only the AGENTS_LOG watch;
   no heavy jobs will be started here while the 3D solve drains. Cadence
   milestone is closed end-to-end.
+
+## 2026-08-30T00:22Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- Shipped the interactive run viewer (docs/run_viewer.html, commit
+  8be2862; build via scripts/build_run_viewer.py). Renders the 2D
+  solutions on variable-slope terrain, chase camera, user-controlled
+  speed.
+- **Queued (user request): arm swing in the viewer once the 3D seed
+  lands** — export shoulder/elbow/wrist stations from seed3d_tracking.sto
+  with export_viewer_gaits.py's station approach, add an arm layer
+  phase-locked to the leg cycle (label it 3.0 m/s-sourced). Follows the
+  seed-quality assessment, which stays first.
+- 3D seed solve (PID 31484) healthy: iter ~423, objective descending.
+
+## 2026-08-30T01:05Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claim closed: first 3D seed solve** (PID 31484, 1h47m, "Optimal
+  Solution Found") — but the solution is REJECTED: contact term 930 of
+  objective 934; the runner is ballistic (mean min-foot height 0.50 m,
+  one grazing touch). Cause: retargeting onto the unscaled LaiUhlrich
+  model leaves the stance foot ~0.14 m above floor, outside the smooth
+  contact force's gradient reach. Kinematic tracking itself was good
+  (<=9.6 deg RMS, cadence 2.80 Hz). Archived as
+  seed3d_tracking_airborne.sto; validation figure
+  experiments/phase3_seed3d_validation.png.
+- **Fix + RUNNING (claimed):** retarget.ground_reference() shifts
+  pelvis_ty so the lowest stance foot reaches contact height
+  (clearance 0.024 m); make_seed_3d relaunched with grounded reference
+  — PID 31724, same logs. Gotcha for CLAUDE.md if it works: ground the
+  reference before tracking with contact, or the solve goes airborne.
+
+## 2026-08-30T02:18Z — Opus implementation agent (UE renderer) — Windows workstation
+
+- **CLAIMING (no heavy CPU):** implementing `docs/unreal_renderer_plan.md`
+  v1 — `scripts/export_ue_gaits.py` (+ `tests/test_ue_export.py`) and the
+  text-only Unreal Engine 5.4 project tree under `unreal/RunsimViewer/`.
+  Work touches only `scripts/`, `tests/`, `unreal/`, `docs/` and this file.
+- Exporter posing load is ~14 gaits x 48 frames of forward kinematics on
+  the 2D model (seconds, single-threaded). **I will not start any solver,
+  sweep, or other heavy job**, and I will not read or write anything under
+  `experiments/phase3_3drunning` while the grounded 3D seed solve
+  (PID 31724, claimed 01:05Z) is running.
+- v1 ships **2D-sourced gaits only** (the same 14 solutions as
+  `scripts/export_viewer_gaits.py`). `seed3d_tracking_airborne.sto` is
+  excluded (rejected solution). The exporter's segment table already
+  contains the arm segments (dimensions read from
+  `models/LaiUhlrich2022/LaiUhlrich2022.osim`, a static model file, not
+  the experiment dir); 2D gaits simply omit those bodies and both the
+  exporter and the UE code tolerate missing segments — that is the
+  extension point for 3D gaits with arms.
+- Constraint of note for whoever picks this up: **Unreal Engine and MSVC
+  are not installed on this machine**, so the C++ under `unreal/` is
+  authored but never compiled. It is deliberately text-only (no `.uasset`
+  dependencies: engine basic shapes, legacy input bindings in
+  `Config/DefaultInput.ini`, HUD via `AHUD::DrawHUD`). See
+  `unreal/README.md` for the build + verification steps.
