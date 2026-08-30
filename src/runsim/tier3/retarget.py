@@ -120,10 +120,19 @@ def write_states_reference(
     out_path: str | Path,
     decimate: int = 10,
     ground: bool = True,
+    clearance: float = 0.013,
 ) -> Path:
+    """clearance: target calcn height at the deepest stance frame. The
+    default 0.013 m sinks the heel sphere ~1.2 cm into the floor, where
+    the smooth contact produces ~2.6 BW at the deepest stance pose —
+    matching the measured peak, so the guess itself carries running-scale
+    support. A grazing reference (clearance ~0.024, sphere just touching)
+    leaves the guess force-free, and tracking + dynamics then settle on a
+    ballistic gait (two rejected solves, see AGENTS_LOG 2026-08-30)."""
     table = retarget_states(states_path, model, decimate=decimate)
     if ground:
-        drop = ground_reference(table, model)
-        print(f"[retarget] grounded reference: pelvis_ty shifted by {-drop:+.3f} m")
+        drop = ground_reference(table, model, clearance=clearance)
+        print(f"[retarget] grounded reference: pelvis_ty shifted by {-drop:+.3f} m "
+              f"(clearance {clearance} m)")
     osim.STOFileAdapter.write(table, str(out_path))
     return Path(out_path)
