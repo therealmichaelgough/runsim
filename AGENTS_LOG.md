@@ -259,3 +259,121 @@ all agents report status
   `GAITS_3D` at the top of `scripts/export_ue_gaits.py`, re-run the exporter
   and the tests, and the arms come alive. `seed3d_tracking_airborne.sto` was
   deliberately excluded as a rejected solution.
+
+## 2026-08-30T02:57Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **CLAIMING: install the UE toolchain and build `unreal/RunsimViewer`** so the
+  user can see the 3D render on this machine. Nothing UE-related is installed
+  yet (confirmed by the 02:42Z entry).
+- **Preflight:** C: has only **33.5 GB free**, D: has **1476.9 GB**. UE 5.4 is
+  ~45 GB, so **the engine must be installed to D:** (Epic Games Launcher lets
+  you pick the install path). VS 2022 Build Tools (~7 GB) will go to C:.
+  winget v1.29.290 present.
+- **CPU discipline:** grounded 3D seed solve **PID 31724 verified ALIVE**. I
+  will run downloads/installers only; **no UnrealBuildTool/msbuild until 31724
+  exits** (polling `seed3d_full_stdout.log` for "seed written"), and builds
+  will run at BelowNormal priority regardless.
+- Stage 3 (Epic account sign-in + engine install through the launcher UI) is
+  the **user's** step — I will not create accounts or enter credentials.
+
+## 2026-08-30T03:12Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **Stages 1-2 done (no account needed, nothing heavy on the CPU).**
+  - **VS 2022 Build Tools 17.14.39** — `C:\Program Files (x86)\Microsoft Visual
+    Studio\2022\BuildTools`. MSVC **v14.44.35207** (`...\VC\Tools\MSVC\14.44.35207\
+    bin\Hostx64\x64\cl.exe`), Windows SDK **10.0.22621.0** and **10.0.26100.0**,
+    .NET Framework **4.6.2** targeting pack, .NET SDK.
+  - **Gotcha provisioned in advance:** MSVC 14.44 is *newer* than UE 5.4's
+    supported toolchain, and UBT rejects/warns on out-of-range toolchains. The
+    **14.38.17.8** toolset is being added alongside so UE 5.4 has a compiler it
+    accepts. If UBT still complains, either pass `-Compiler=VisualStudio2022` with
+    a `BuildConfiguration.xml` pinning `<CompilerVersion>14.38.33130</CompilerVersion>`,
+    or install a newer engine (5.5/5.6) which accepts 14.44.
+  - **Epic Games Launcher 1.3.193.0** — `C:\Program Files\Epic Games\Launcher\
+    Portal\Binaries\Win64\EpicGamesLauncher.exe`.
+- **DISK — matters for whoever does the engine install:** C: is down to
+  **21.3 GB free**, D: has **1476.9 GB**. UE is ~45 GB, so **the engine install
+  path must be changed to D:** in the launcher (default is
+  `C:\Program Files\Epic Games\UE_5.4` and it will not fit).
+- **Stage 3 is the user's** (Epic sign-in + engine install through the launcher
+  GUI; I will not create accounts or enter credentials). **Entering the wait
+  now:** polling every 5 min for `Engine\Build\BatchFiles\Build.bat` under
+  `C:\Program Files\Epic Games\UE_5.*` or `D:\Epic Games\UE_5.*`.
+- Moco solve **PID 31724 still ALIVE** (iter ~505/2000, log actively written).
+  A separate watcher is armed for its exit; **no build will start before both
+  the engine exists and that solve drains.**
+- **Pre-review of the never-compiled `Source/` tree** (all 2071 lines read
+  against the UE 5.4 API) found no obvious errors: LWC double types are handled,
+  `ESplineMeshAxis::X` / `FQuat`/`FVector` ctor orders are right, every
+  `#include` matches the symbol it provides, and `static constexpr` members are
+  only used in ways C++17 makes legal. Real risks remain link/UHT-level
+  (generated-header ordering, module deps) rather than anything visible by
+  reading, plus the toolchain-version issue above.
+
+## 2026-08-30T03:35Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **Claim partially closed — handing Stage 3 to the user.** Stages 0-2 are done;
+  Stage 4 (build + launch) is blocked on two things I cannot do myself.
+
+**Installed (verified)**
+
+| What | Version | Where |
+|---|---|---|
+| VS 2022 Build Tools | 17.14.39 (17.14.37614.0) | `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools` |
+| MSVC toolset | **14.44.35207** | `...\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe` |
+| Windows SDK | 10.0.22621.0 **and** 10.0.26100.0 | `C:\Program Files (x86)\Windows Kits\10` |
+| .NET Framework targeting pack | 4.6.2 | present (UBT needs it) |
+| Epic Games Launcher | 1.3.193.0 | `C:\Program Files\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe` (started; awaiting user sign-in) |
+
+**Toolchain gotcha — read before picking an engine version**
+
+- The only MSVC toolset on this box is **14.44**. UE **5.4**'s UnrealBuildTool
+  predates it and rejects/warns on out-of-range toolchains; UE **5.5/5.6** accept
+  14.44 happily. **Recommendation: install the newest UE 5.x the launcher
+  offers.** The `Source/` tree uses only long-stable API (AHUD::DrawHUD, Canvas,
+  ConstructorHelpers, USplineMeshComponent, legacy `BindAxis`/`BindAction`,
+  TActorIterator, FJsonSerializer), so 5.5/5.6 is low risk; bump
+  `EngineAssociation` in `RunsimViewer.uproject` from `5.4` to match.
+- If 5.4 is used anyway and UBT rejects 14.44, the fix is either an **elevated**
+  VS Installer adding `Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64`,
+  or `%APPDATA%\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml` with
+  `<WindowsPlatform><CompilerVersion>14.38.33130</CompilerVersion></WindowsPlatform>`.
+  I tried to add 14.38 non-interactively three ways; **all failed silently** —
+  winget refuses to modify an already-installed package ("No available upgrade
+  found"), and `setup.exe modify` returns 0x57 / no-ops without elevation. It
+  needs a UAC prompt, so it is a user action if it turns out to be needed.
+
+**DISK — the one thing that will bite**
+
+- C: **19.4 GB free**, D: **1476.9 GB**. UE is ~45 GB. The launcher defaults to
+  `C:\Program Files\Epic Games\UE_5.x` and **will not fit** — the install path
+  must be changed to **D:** (e.g. `D:\Epic Games\UE_5.6`).
+
+**Still blocking Stage 4**
+
+1. Epic sign-in + engine install (user; launcher GUI, cannot be automated here).
+2. Moco solve **PID 31724 still ALIVE** — iter ~605/2000, objective 1.081e3 and
+   descending, log actively written. No UBT/msbuild will run until it drains.
+
+**Pre-review of the never-compiled C++** — all 2071 lines of `Source/` read
+against the UE 5.4 API. No definite errors found: LWC double-precision
+`FVector`/`FQuat`/`FRotator` are handled, ctor arg orders are right,
+`ESplineMeshAxis::X` is valid, every `#include` supplies the symbols used, and
+`static constexpr` members are only odr-used in C++17-legal ways. Residual risk
+is at UHT/link level (generated-header ordering, module deps) plus the toolchain
+issue above — i.e. still assume a first build needs fixes, but the review found
+nothing to pre-emptively patch.
+
+**Exact commands for whoever resumes Stage 4** (with `<UE>` = the install dir):
+
+```
+"<UE>\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -game -engine
+"<UE>\Engine\Build\BatchFiles\Build.bat" RunsimViewerEditor Win64 Development -project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -waitmutex
+"<UE>\Engine\Binaries\Win64\UnrealEditor.exe" "D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -game -windowed -resx=1600 -resy=900
+```
+
+Run the build at BelowNormal priority. **M2 check confirmed from the data side:**
+`gaits_ue.json` is well formed (48 frames, 13 segments, 14 gaits) and the flat
+3.0 m/s gait (`fullstride_v3_gp0_met.sto`) has strideTime 0.5241 s -> the HUD
+must read **229 spm / 3.82 Hz** (README says 228/3.80; the 1 spm difference is
+just rounding of the same number, not a discrepancy).
