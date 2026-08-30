@@ -194,3 +194,68 @@ all agents report status
   dependencies: engine basic shapes, legacy input bindings in
   `Config/DefaultInput.ini`, HUD via `AHUD::DrawHUD`). See
   `unreal/README.md` for the build + verification steps.
+
+## 2026-08-30T02:42Z — Opus implementation agent (UE renderer) — Windows workstation
+
+- **Claim closed: UE renderer v1 shipped** (windows-main `0d0d181`,
+  `d2b1f7e`, both pushed). No heavy CPU was used; nothing under
+  `experiments/phase3_3drunning` was read or written.
+
+**What landed**
+
+- `scripts/export_ue_gaits.py` — bakes per-body world transforms (position +
+  quaternion, ground frame, pelvis_tx-relative) for 13 render segments, per
+  gait metadata (strideTime/strideLen/speed/grade/cot), and capsule
+  dimensions from joint-to-joint distances. Does the OpenSim -> Unreal
+  conversion (`(x,y,z) -> (100x, 100z, 100y)`; `R_ue = M R M^T`, i.e.
+  quaternion `(w,x,y,z) -> (-x,-z,-y,w)`). Ran clean: 14 gaits, 246 KB to
+  `unreal/RunsimViewer/Content/Data/gaits_ue.json`.
+- `tests/test_ue_export.py` — **19 tests, all passing.** Pins the rotation
+  conversion (round trip, matrix-conjugation equivalence, and the
+  flexion-axis sign that decides uphill lean), verifies on real exported
+  frames that joint-to-joint distances equal the OpenSim ones x100 and that
+  the exported quaternions place child joints correctly, range-checks capsule
+  lengths (thigh 39.7, shank 41.6, foot 16.4, upper arm 28.7, forearm
+  25.3 cm), and pins the ported blend algorithm (bracket rule, grade-delta
+  cancellation at a solved point, <1 cm stance-foot drift under the
+  world-advance rule). Full suite still green: 62 passed, 4 skipped.
+- `unreal/RunsimViewer/` — UE 5.4 C++ project: `URunsimGaitData` (JSON +
+  blend), `ARunsimRunner`, `ARunsimTerrain`, `ARunsimPawn`, `ARunsimHUD`,
+  `ARunsimGameMode`, and `RunsimTerrainMath.h` (the single shared ground
+  function). `unreal/README.md` has build steps, M1/M2 verification and the
+  deviations table.
+
+**Untested because uncompilable**
+
+- Unreal Engine and MSVC are not installed here, so **nothing under
+  `unreal/RunsimViewer/Source/` has ever been through a compiler.** It was
+  self-reviewed against the 5.4 API, but assume a first build needs fixes.
+  Everything Python-side *was* run and verified.
+- The project is deliberately text-only: no `.uasset`, no `.umap`. Meshes are
+  `/Engine/BasicShapes/*`; input uses legacy ini bindings with
+  `DefaultPlayerInputClass` forced back to `/Script/Engine.PlayerInput`; the
+  HUD is `AHUD::DrawHUD`; the game mode spawns terrain, runner, a
+  PlayerStart and two directional lights so any empty level works.
+
+**Exact next manual steps (human, on a machine with the engine)**
+
+1. Install UE 5.4+ and VS 2022 with the C++ game-development workload.
+2. Right-click `unreal/RunsimViewer/RunsimViewer.uproject` -> Generate VS
+   project files; build `Development Editor | Win64`; fix whatever the
+   review missed (most likely an include or an engine-version API change).
+3. Open the project, press Play. M1: pause on frame 0, side view, compare
+   against `scripts/watch_gait.py --motion
+   experiments/phase3_2drunning/fullstride_v3_gp0_met.sto --no-follow` at
+   t = 0. M2: the HUD must read 228 spm / 3.80 Hz at 3.0 m/s flat.
+4. Optional 30-second polish the repo cannot do: drag a Sky Atmosphere and a
+   Sky Light into the level (both are assets).
+
+**For the 3D phase (whoever owns it)**
+
+- Arms are already plumbed end to end: the segment table carries
+  `upperarm_*`/`forearm_*`, sized from `models/LaiUhlrich2022`, and both the
+  exporter and the renderer tolerate gaits that lack those bodies (the
+  segments stay hidden). When a non-airborne 3D seed lands, add it to
+  `GAITS_3D` at the top of `scripts/export_ue_gaits.py`, re-run the exporter
+  and the tests, and the arms come alive. `seed3d_tracking_airborne.sto` was
+  deliberately excluded as a rejected solution.
