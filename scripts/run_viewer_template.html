@@ -1,0 +1,289 @@
+<title>Runsim Track</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+  /* Deliberate single-theme night viewport — all colors explicit. */
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: #0B1220; color: #DCE6F2;
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden; height: 100vh;
+  }
+  #stage { position: fixed; inset: 0; display: block; }
+  .hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 14px 18px; pointer-events: none;
+  }
+  .hud .brand { font-weight: 600; letter-spacing: .04em; font-size: 14px; color: #8FB6D9; }
+  .hud .brand small { display: block; font-weight: 400; color: #5C7590; font-size: 11px; }
+  .metrics {
+    display: flex; gap: 10px; font-family: "IBM Plex Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric {
+    background: #101B2Ecc; border: 1px solid #21344D; border-radius: 8px;
+    padding: 6px 12px; min-width: 92px; text-align: right;
+  }
+  .metric b { display: block; font-size: 20px; font-weight: 600; color: #EAF3FC; }
+  .metric span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6E88A6; }
+  .metric.gait b { color: #64D8C6; }
+  #controls {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; gap: 14px; align-items: center; justify-content: center;
+    padding: 12px 18px 16px; background: linear-gradient(#0B122000, #0B1220e0 55%);
+    font-family: "IBM Plex Mono", Consolas, monospace; font-size: 12px;
+  }
+  #controls label { color: #6E88A6; letter-spacing: .06em; }
+  input[type=range] { accent-color: #64D8C6; width: 170px; }
+  button {
+    background: #14243B; color: #DCE6F2; border: 1px solid #2A4160;
+    border-radius: 7px; padding: 6px 12px; font: inherit; cursor: pointer;
+  }
+  button:hover { background: #1B3050; }
+  button:focus-visible, input:focus-visible { outline: 2px solid #64D8C6; outline-offset: 1px; }
+  .hint { position: fixed; bottom: 62px; width: 100%; text-align: center;
+    font-size: 11px; color: #51677f; font-family: "IBM Plex Mono", monospace;
+    letter-spacing: .05em; pointer-events: none; }
+  @media (max-width: 640px) { .metric { min-width: 70px; padding: 5px 8px; } .metric b { font-size: 15px; } .hint { display: none; } }
+</style>
+
+<canvas id="stage"></canvas>
+<div class="hud">
+  <div class="brand">RUNSIM TRACK<small>Moco 2D solutions | metabolic objective</small></div>
+  <div class="metrics">
+    <div class="metric gait"><b id="mGait">RUN</b><span>gait</span></div>
+    <div class="metric"><b id="mSpeed">3.0</b><span>m/s</span></div>
+    <div class="metric"><b id="mPace">5:33</b><span>min/km</span></div>
+    <div class="metric"><b id="mGrade">+0.0%</b><span>grade</span></div>
+    <div class="metric"><b id="mCad">172</b><span>steps/min</span></div>
+    <div class="metric"><b id="mCot">3.49</b><span>COT J/kg/m</span></div>
+  </div>
+</div>
+<div class="hint">UP/DOWN or W/S - speed | H - hillier | F - flatter | SPACE - pause</div>
+<div id="controls">
+  <button id="btnSlow" aria-label="slower">-</button>
+  <label>SPEED <input id="speed" type="range" min="1.2" max="5" step="0.05" value="3"></label>
+  <button id="btnFast" aria-label="faster">+</button>
+  <label>HILLS <input id="hills" type="range" min="0" max="1" step="0.01" value="0.45"></label>
+  <button id="btnPause">pause</button>
+</div>
+
+<script>
+const DATA = /*__GAIT_DATA__*/null;
+
+const S = DATA.stations.reduce((m, n, i) => (m[n] = i, m), {});
+const speedGaits = DATA.gaits.filter(g => g.grade === 0).sort((a, b) => a.speed - b.speed);
+const gradeGaits = DATA.gaits.filter(g => g.speed === 3.0 && g.src.includes("_met"))
+  .sort((a, b) => a.grade - b.grade);
+const flat3 = speedGaits.find(g => g.speed === 3.0);
+const NF = DATA.nframes, NP = DATA.stations.length;
+
+function bracket(arr, key, x) {
+  let i = 0;
+  while (i < arr.length - 2 && arr[i + 1][key] <= x) i++;
+  const a = arr[i], b = arr[i + 1];
+  const w = Math.min(1, Math.max(0, (x - a[key]) / (b[key] - a[key] || 1)));
+  return [a, b, w];
+}
+function frameAt(g, phase) {
+  const f = phase * NF, i = Math.floor(f) % NF, j = (i + 1) % NF, u = f - Math.floor(f);
+  const A = g.frames[i], B = g.frames[j], out = new Array(NP);
+  for (let p = 0; p < NP; p++)
+    out[p] = [A[p][0] + (B[p][0] - A[p][0]) * u, A[p][1] + (B[p][1] - A[p][1]) * u];
+  return out;
+}
+function blendedPose(speed, grade, phase) {
+  const [a, b, w] = bracket(speedGaits, "speed", speed);
+  const A = frameAt(a, phase), B = frameAt(b, phase);
+  const pose = new Array(NP);
+  for (let p = 0; p < NP; p++)
+    pose[p] = [A[p][0] * (1 - w) + B[p][0] * w, A[p][1] * (1 - w) + B[p][1] * w];
+  const gc = Math.max(gradeGaits[0].grade, Math.min(gradeGaits.at(-1).grade, grade));
+  const [ga, gb, gw] = bracket(gradeGaits, "grade", gc);
+  const GA = frameAt(ga, phase), GB = frameAt(gb, phase), F = frameAt(flat3, phase);
+  for (let p = 0; p < NP; p++) {
+    pose[p][0] += GA[p][0] * (1 - gw) + GB[p][0] * gw - F[p][0];
+    pose[p][1] += GA[p][1] * (1 - gw) + GB[p][1] * gw - F[p][1];
+  }
+  const lerp2 = (k) => (a[k] * (1 - w) + b[k] * w) +
+    (ga[k] * (1 - gw) + gb[k] * gw) - flat3[k];
+  const cots = [a.cot, b.cot, ga.cot, gb.cot];
+  const cot = cots.some(c => c == null) ? null :
+    a.cot * (1 - w) + b.cot * w + ga.cot * (1 - gw) + gb.cot * gw - flat3.cot;
+  return { pose, strideTime: lerp2("strideTime"), strideLen: lerp2("strideLen"),
+           walkW: a.speed <= 2.0 ? 1 - w * (b.speed > 2.0 ? 1 : 0) : 0, cot };
+}
+
+// --- terrain: sum of sines; amplitude scaled so max grade ~= data range ---
+let hills = 0.45;
+function terrainH(x) {
+  return hills * (1.9 * Math.sin(x / 24) + 1.1 * Math.sin(x / 9.7 + 1.3) + 0.5 * Math.sin(x / 4.9 + 4.1));
+}
+function terrainG(x) {
+  return hills * (1.9 / 24 * Math.cos(x / 24) + 1.1 / 9.7 * Math.cos(x / 9.7 + 1.3) + 0.5 / 4.9 * Math.cos(x / 4.9 + 4.1));
+}
+
+// --- simulation state ---
+const canvas = document.getElementById("stage"), ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  canvas.width = W * DPR; canvas.height = H * DPR;
+}
+window.addEventListener("resize", resize); resize();
+
+let x = 0, phase = 0, speed = 3.0, target = 3.0;
+let camX = 0, camY = 1, paused = false, last = null;
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (reduced) paused = true;
+
+const ui = {
+  speed: document.getElementById("speed"), hills: document.getElementById("hills"),
+  mSpeed: document.getElementById("mSpeed"), mPace: document.getElementById("mPace"),
+  mGrade: document.getElementById("mGrade"), mCad: document.getElementById("mCad"),
+  mCot: document.getElementById("mCot"), mGait: document.getElementById("mGait"),
+  pause: document.getElementById("btnPause"),
+};
+ui.speed.addEventListener("input", () => target = parseFloat(ui.speed.value));
+ui.hills.addEventListener("input", () => hills = parseFloat(ui.hills.value));
+document.getElementById("btnSlow").addEventListener("click", () => setTarget(target - 0.2));
+document.getElementById("btnFast").addEventListener("click", () => setTarget(target + 0.2));
+ui.pause.addEventListener("click", togglePause);
+function setTarget(v) { target = Math.min(5, Math.max(1.2, v)); ui.speed.value = target; }
+function togglePause() { paused = !paused; ui.pause.textContent = paused ? "resume" : "pause"; last = null; }
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" || e.key === "w") setTarget(target + 0.1);
+  else if (e.key === "ArrowDown" || e.key === "s") setTarget(target - 0.1);
+  else if (e.key === "h") { hills = Math.min(1, hills + 0.05); ui.hills.value = hills; }
+  else if (e.key === "f") { hills = Math.max(0, hills - 0.05); ui.hills.value = hills; }
+  else if (e.key === " ") { e.preventDefault(); togglePause(); }
+});
+
+function fmtPace(v) {
+  const s = 1000 / v; return `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+}
+
+function draw(now) {
+  requestAnimationFrame(draw);
+  if (last == null) last = now;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!paused) {
+    speed += (target - speed) * Math.min(1, dt * 1.6);
+    const grade = terrainG(x);
+    const B = blendedPose(speed, grade, phase);
+    const vEff = B.strideLen / B.strideTime;
+    phase = (phase + dt / B.strideTime) % 1;
+    x += vEff * Math.cos(Math.atan(grade)) * dt;
+  }
+  const grade = terrainG(x), theta = Math.atan(grade);
+  const B = blendedPose(speed, grade, phase);
+
+  // camera chase
+  const lookahead = speed * 0.55;
+  camX += ((x + lookahead) - camX) * Math.min(1, dt * 2.2);
+  camY += ((terrainH(x) + 1.05) - camY) * Math.min(1, dt * 2.2);
+  const scale = Math.min(150, Math.max(90, H / 6.5)) ;
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#0B1220"); sky.addColorStop(0.65, "#13223A"); sky.addColorStop(1, "#1A2C48");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+  // star field (slow parallax, deterministic)
+  ctx.fillStyle = "#9FB8D8";
+  for (let i = 0; i < 70; i++) {
+    const sx = ((i * 127.31 + 41.7 - camX * scale * 0.04) % (W + 40) + W + 40) % (W + 40) - 20;
+    const sy = (Math.sin(i * 12.9898) * 0.5 + 0.5) * H * 0.55;
+    const r = 0.6 + (i % 3) * 0.45;
+    ctx.globalAlpha = 0.25 + (i % 5) * 0.12;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const toPx = (wx, wy) => [W / 2 + (wx - camX) * scale, H * 0.58 - (wy - camY) * scale];
+
+  // far ridge (parallax 0.3)
+  ctx.beginPath();
+  for (let sx = 0; sx <= W; sx += 8) {
+    const wx = camX * 0.3 + (sx - W / 2) / (scale * 0.55);
+    const wy = 2.2 + hills * (1.6 * Math.sin(wx / 31 + 2) + 0.8 * Math.sin(wx / 13));
+    const py = H * 0.58 - (wy - camY * 0.25) * scale * 0.55;
+    sx === 0 ? ctx.moveTo(sx, py) : ctx.lineTo(sx, py);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = "#101D31"; ctx.fill();
+
+  // terrain
+  ctx.beginPath();
+  let firstPy = 0;
+  for (let sx = 0; sx <= W; sx += 4) {
+    const wx = camX + (sx - W / 2) / scale;
+    const [, py] = toPx(wx, terrainH(wx));
+    sx === 0 ? (ctx.moveTo(sx, py), firstPy = py) : ctx.lineTo(sx, py);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  const gnd = ctx.createLinearGradient(0, H * 0.4, 0, H);
+  gnd.addColorStop(0, "#1D3049"); gnd.addColorStop(1, "#0D1626");
+  ctx.fillStyle = gnd; ctx.fill();
+  ctx.strokeStyle = "#3E5C82"; ctx.lineWidth = 2; ctx.stroke();
+
+  // distance ticks every 5 m
+  ctx.fillStyle = "#4A6687"; ctx.font = "10px IBM Plex Mono, monospace"; ctx.textAlign = "center";
+  const x0 = Math.floor((camX - W / 2 / scale) / 5) * 5;
+  for (let wx = x0; wx < camX + W / 2 / scale + 5; wx += 5) {
+    const [px, py] = toPx(wx, terrainH(wx));
+    ctx.fillRect(px - 1, py - 6, 2, 6);
+    ctx.fillText(`${wx}m`, px, py + 14);
+  }
+
+  // runner: rotate sim-frame pose by local slope, place on terrain
+  const cos = Math.cos(theta), sin = Math.sin(theta);
+  const base = [x, terrainH(x)];
+  const P = {};
+  for (let p = 0; p < NP; p++) {
+    const [rx, ry] = B.pose[p];
+    P[DATA.stations[p]] = toPx(base[0] + rx * cos - ry * sin, base[1] + rx * sin + ry * cos);
+  }
+  const limb = (names, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    names.forEach((n, i) => i === 0 ? ctx.moveTo(...P[n]) : ctx.lineTo(...P[n]));
+    ctx.stroke();
+  };
+  // far (right) leg, dim
+  limb(["hip_r", "knee_r", "ankle_r", "heel_r"], "#3F5E85", 7);
+  limb(["heel_r", "toe_r"], "#3F5E85", 6);
+  // torso + neck + head
+  limb(["pelvis", "lumbar", "shoulder", "head"], "#7FA8CF", 9);
+  ctx.beginPath(); ctx.arc(...P["head"], 0.075 * scale, 0, 7);
+  ctx.fillStyle = "#7FA8CF"; ctx.fill();
+  // near (left) leg, bright
+  limb(["hip_l", "knee_l", "ankle_l", "heel_l"], "#8FC7E8", 7);
+  limb(["heel_l", "toe_l"], "#8FC7E8", 6);
+  // joint markers (mocap dots)
+  ctx.fillStyle = "#64D8C6";
+  for (const n of ["hip_l", "knee_l", "ankle_l", "knee_r", "ankle_r", "lumbar", "shoulder"]) {
+    ctx.beginPath(); ctx.arc(...P[n], 2.6, 0, 7); ctx.fill();
+  }
+  // contact glow
+  for (const n of ["heel_l", "toe_l", "heel_r", "toe_r"]) {
+    const wy = (n.endsWith("_l") ? B.pose[S[n]] : B.pose[S[n]])[1];
+    if (wy < 0.03) {
+      ctx.beginPath(); ctx.arc(P[n][0], P[n][1] + 3, 6, 0, 7);
+      ctx.fillStyle = "#64D8C633"; ctx.fill(); ctx.fillStyle = "#64D8C6";
+    }
+  }
+
+  // HUD
+  ui.mSpeed.textContent = speed.toFixed(1);
+  ui.mPace.textContent = fmtPace(speed);
+  ui.mGrade.textContent = `${grade >= 0 ? "+" : ""}${(grade * 100).toFixed(1)}%`;
+  ui.mCad.textContent = Math.round(120 / B.strideTime);
+  ui.mCot.textContent = B.cot == null ? "—" : B.cot.toFixed(2);
+  ui.mGait.textContent = B.walkW > 0.5 ? "WALK" : "RUN";
+}
+requestAnimationFrame(draw);
+</script>
