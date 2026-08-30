@@ -64,7 +64,8 @@ GRF_XML_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def main(mesh_intervals: int = 50, max_iterations: int = 2000) -> None:
+def main(mesh_intervals: int = 50, max_iterations: int = 2000,
+         guess_path: str | None = None) -> None:
     model = build_running_model(MODEL, out_path=HERE / "lai_running_model.osim")
     model.initSystem()
     states_ref = write_states_reference(RRA_CYCLE, model, HERE / "states_ref_v3.sto")
@@ -114,6 +115,8 @@ def main(mesh_intervals: int = 50, max_iterations: int = 2000) -> None:
     solver.set_optim_convergence_tolerance(1e-3)
     solver.set_optim_constraint_tolerance(1e-3)
     solver.set_optim_max_iterations(max_iterations)
+    if guess_path:  # warm-start continuation from a prior solution
+        solver.setGuessFile(str(guess_path))
 
     solution = study.solve()
     solution.unseal()
@@ -129,4 +132,6 @@ if __name__ == "__main__":
     kwargs = {}
     if len(sys.argv) > 1:
         kwargs["max_iterations"] = int(sys.argv[1])
+    if len(sys.argv) > 2:
+        kwargs["guess_path"] = sys.argv[2]
     main(**kwargs)
