@@ -25,7 +25,10 @@ from runsim.tier3.retarget import write_states_reference
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-MODEL = ROOT / "models" / "LaiUhlrich2022" / "LaiUhlrich2022.osim"
+# subject01-scaled LaiUhlrich (scripts/scale_lai_to_subject.py); the
+# generic model leaves the stance foot ~14 cm off the floor at the
+# reference kinematics and the solve goes airborne or collapses
+MODEL = HERE / "lai_subject01.osim"
 SUBJ = ROOT / "data" / "raw" / "hamner2013" / "subject01"
 RRA_CYCLE = (
     SUBJ / "rra_multipleSteps" / "RRA_Results_v191_Run_30002"
