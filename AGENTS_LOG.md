@@ -377,3 +377,113 @@ Run the build at BelowNormal priority. **M2 check confirmed from the data side:*
 3.0 m/s gait (`fullstride_v3_gp0_met.sto`) has strideTime 0.5241 s -> the HUD
 must read **229 spm / 3.82 Hz** (README says 228/3.80; the 1 spm difference is
 just rounding of the same number, not a discrepancy).
+
+## 2026-08-30T03:55Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Directive change (from user): PAUSE at 3D-solve completion.** When the
+  grounded seed solve (PID 31724) writes its solution, no follow-on work
+  starts: no validation, no viewer arm-swing update, no UE stage-4 build
+  or agent resumption. This session will report status and hold for the
+  user. Supersedes the auto-continue chain in my 23:44Z/01:05Z claims and
+  the stage-4 auto-resume noted by the setup agent. All monitors stay
+  armed as tripwires only.
+
+## 2026-08-30T04:20Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Directive update (user): RESUME on 3D-solve completion.** UE engine
+  install confirmed done by user. When PID 31724 writes its solution,
+  this session resumes the full chain: seed validation -> commit ->
+  arm-swing exports (web viewer + UE gaits) -> resume setup agent for
+  UE stage 4 (build + launch). Supersedes the 03:55Z pause directive.
+
+## 2026-08-30T04:05Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **RESUMING STAGE 4 (claimed).** Engine turned out to be **UE 5.8.2**
+  (`++UE5+Release-5.8`, CL 56702186) at **`D:\unreal\UE_5.8`** — not 5.4-5.6 and
+  not the launcher default path, so the toolchain worry is moot: 5.8 accepts
+  MSVC 14.44 and the 14.38 fallback is not needed.
+- Moco solve **PID 31724 has exited**; `seed written` is in the log. CPU is free,
+  but a heavy re-solve is expected later, so **the build runs at BelowNormal**
+  and I will finish promptly.
+- **Heads-up for the 3D-phase owner (not mine to act on):** that seed line reads
+  `success=False, objective=519.201` — the solve wrote
+  `experiments/phase3_3drunning/seed3d_tracking.sto` but did **not** converge.
+- Bumping `RunsimViewer.uproject` `EngineAssociation` 5.4 -> 5.8. The C++ was
+  authored against 5.4 and reviewed against 5.4; **expect 5.8 deprecation
+  warnings-as-errors**, especially the legacy `BindAxis`/`BindAction` input path.
+  Fixes will be minimal, faithful to the design, and committed individually.
+
+## 2026-08-30T05:10Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claim closed: grounded seed solve REJECTED too** (iteration cap,
+  obj 519 = contact 469; feet penetrate 30 cm, pelvis collapses, 0.5 m
+  lateral drift). Root cause refined: uniform pelvis shift over-corrects
+  when segment proportions are wrong.
+- **Proper fix committed (4915a6a):** lai_subject01.osim — LaiUhlrich
+  scaled to subject01 by FK span ratios (femur x0.975, tibia x1.075).
+  Raw-reference stance foot now 0.093 m (was 0.139); ground_reference
+  covers the remaining pelvis frame-convention gap (~6.9 cm).
+- **QUEUED: seed re-solve on the scaled model** — launches after the UE
+  stage-4 build (Opus setup agent, currently active) frees the CPU. Do
+  not start other heavy jobs.
+
+## 2026-08-30T04:35Z — Opus setup agent (UE install + build) — Windows workstation
+
+- **Stage 4 BLOCKED on one user click.** Not a code problem — the build never
+  reached the compiler.
+
+**Progress**
+
+- `EngineAssociation` bumped 5.4 -> 5.8; `unreal/.gitignore` now also ignores
+  UE 5.8's new `*.slnx` solution format.
+- **Project file generation SUCCEEDED** against UE 5.8.2 (`Result: Succeeded`,
+  10.6 s) — `RunsimViewer.sln` / `.slnx` written, rules assemblies compiled. So
+  the `.uproject`, both `Target.cs` files and `RunsimViewer.Build.cs` are all
+  valid under 5.8; the UBT-level risk I flagged earlier is cleared.
+- **Build failed before compiling anything**, at module-rules time:
+
+```
+Unable to instantiate module 'SwarmInterface': Could not find NetFxSDK install dir;
+this will prevent SwarmInterface from installing.  Install a version of
+.NET Framework SDK at 4.6.0 or higher.
+(referenced via RunsimViewerEditor -> ... -> UnrealEd.Build.cs)
+Result: Failed (RulesError)
+```
+
+**Root cause + my mistake**
+
+- `C:\Program Files (x86)\Windows Kits\NETFXSDK\` does not exist. In Stage 1 I
+  installed `Microsoft.Net.Component.4.6.2.TargetingPack` — but UBT needs the
+  **.NET Framework SDK** (`Microsoft.Net.Component.4.6.2.SDK`), a *different*
+  component. The targeting pack alone is not enough; the editor target pulls
+  SwarmInterface in through UnrealEd and that needs the SDK's C++/CLI headers.
+- This cannot be worked around in the project: it is an editor-target engine
+  dependency, and the Game target is not a substitute (uncooked content needs
+  the editor). Spoofing the SDK registry keys would be both wrong and useless
+  without the actual headers.
+
+**THE ONE USER ACTION NEEDED**
+
+A **UAC prompt is on screen right now** — *"Microsoft .NET Framework 4.8.1
+Developer Pack is requesting your permission"* (consent PID 30864, winget PID
+23208). **Click Yes.** It has been pending ~18 min; my shell is not elevated, so
+I cannot approve it and will not try to bypass it. I deliberately left it up so
+approving is all that is required. If it is dismissed, re-run:
+
+```
+winget install --id Microsoft.DotNet.Framework.DeveloperPack_4 --exact --silent \
+    --accept-package-agreements --accept-source-agreements
+```
+
+Success looks like `C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8.1\` existing.
+
+**Then Stage 4 resumes with no further user input:**
+
+```
+"D:\unreal\UE_5.8\Engine\Build\BatchFiles\Build.bat" RunsimViewerEditor Win64 Development -project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -waitmutex
+"D:\unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -game -windowed -resx=1600 -resy=900
+```
+
+(build at BelowNormal). The 5.4-authored C++ still has **not** been through a
+compiler, so the deprecation-warnings-as-errors pass is still ahead — assume
+fixes are needed in `Source/` after the SDK lands.

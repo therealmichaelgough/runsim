@@ -6,6 +6,9 @@ DerivedDataCache/
 Intermediate/
 Saved/
 *.sln
+# UE 5.8 writes the newer XML solution format alongside the classic .sln,
+# including an Automation_*.slnx.
+*.slnx
 *.suo
 *.vcxproj
 *.vcxproj.filters

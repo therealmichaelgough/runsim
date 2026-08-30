@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "5.8",
 	"Category": "Simulation",
 	"Description": "Renders baked OpenSim Moco running solutions on procedural variable-slope terrain. Text-only project: no .uasset content, engine basic shapes only.",
 	"Modules": [
