@@ -333,6 +333,106 @@ def test_stride_data_matches_web_viewer_cadence(data):
     assert g["strideLen"] / g["strideTime"] == pytest.approx(3.0, rel=0.02)
 
 
+# --------------------------------------------------------------------------
+# (d) the blend algorithm the UE side implements
+#
+# URunsimGaitData's blend cannot be compiled on this machine, so the algorithm
+# (not the C++) is pinned here against the shipped data: the bracket rule, the
+# grade-delta cancellation, and the no-foot-skate world advance.
+# --------------------------------------------------------------------------
+
+def _bracket(keys, x):
+    """Port of bracket() in docs/run_viewer.html and of BracketKeys in C++."""
+    n = len(keys)
+    if n <= 1:
+        return 0, 0, 0.0
+    i = 0
+    while i < n - 2 and keys[i + 1] <= x:
+        i += 1
+    span = keys[i + 1] - keys[i]
+    w = min(1.0, max(0.0, (x - keys[i]) / (span if abs(span) > 1e-12 else 1.0)))
+    return i, i + 1, w
+
+
+def test_bracket_matches_web_viewer():
+    keys = [1.2, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+    assert _bracket(keys, 1.2) == (0, 1, 0.0)
+    assert _bracket(keys, 0.5) == (0, 1, 0.0)          # clamped below
+    assert _bracket(keys, 5.9)[:2] == (6, 7)           # clamped above
+    assert _bracket(keys, 5.9)[2] == 1.0
+    a, b, w = _bracket(keys, 2.25)
+    assert (a, b) == (1, 2) and w == pytest.approx(0.5)
+
+
+def _frames_array(gait):
+    n = len(gait["bodies"])
+    rows = np.array(gait["frames"], dtype=float)
+    return rows.reshape(len(gait["frames"]), n, 7)
+
+
+def test_blend_at_a_solved_point_reproduces_that_gait(data):
+    """At an exactly-solved (speed, grade) the blend must be the identity:
+    the speed bracket lands on the gait and the grade delta cancels."""
+    speed_gaits = sorted([g for g in data["gaits"] if g["grade"] == 0.0],
+                         key=lambda g: g["speed"])
+    grade_gaits = sorted([g for g in data["gaits"]
+                          if g["speed"] == 3.0 and "_met" in g["src"]],
+                         key=lambda g: g["grade"])
+    flat3 = next(g for g in speed_gaits if g["speed"] == 3.0)
+    skeys = [g["speed"] for g in speed_gaits]
+    gkeys = [g["grade"] for g in grade_gaits]
+
+    for target in (3.0, 4.0):
+        ia, ib, w = _bracket(skeys, target)
+        ja, jb, gw = _bracket(gkeys, 0.0)
+        A, B = _frames_array(speed_gaits[ia]), _frames_array(speed_gaits[ib])
+        GA, GB = _frames_array(grade_gaits[ja]), _frames_array(grade_gaits[jb])
+        F = _frames_array(flat3)
+        pose = A[:, :, :3] * (1 - w) + B[:, :, :3] * w
+        pose += GA[:, :, :3] * (1 - gw) + GB[:, :, :3] * gw - F[:, :, :3]
+        expected = _frames_array(
+            next(g for g in speed_gaits if g["speed"] == target))[:, :, :3]
+        assert np.allclose(pose, expected, atol=1e-6), target
+
+
+def test_world_advance_removes_foot_skate(data):
+    """The renderer advances the runner at strideLen/strideTime, not at the
+    requested speed.  With that rule a stance foot must stay put in world
+    space: pose x is pelvis-relative and the advance cancels it exactly."""
+    gait = next(g for g in data["gaits"]
+                if g["speed"] == 3.0 and g["grade"] == 0.0)
+    seg = next(s for s in data["segments"] if s["name"] == "foot_r")
+    frames = _frames_array(gait)
+    body = gait["bodies"].index(seg["body"])
+    axis = ue.quat_to_mat(np.array(seg["rot"], dtype=float)) @ np.array([0, 0, 1.0])
+    toe_local = np.array(seg["offsetCm"]) + 0.5 * seg["lengthCm"] * axis
+
+    nframes = data["nframes"]
+    step_cm = gait["strideLen"] * 100.0 / nframes  # world advance per frame
+    world_x, height = [], []
+    for f in range(nframes):
+        pos = frames[f, body, :3]
+        rot = frames[f, body, 3:]
+        toe = pos + ue.quat_to_mat(rot) @ toe_local
+        world_x.append(f * step_cm + toe[0])
+        height.append(toe[2])
+
+    stance = [i for i, z in enumerate(height) if z < 1.2]
+    assert len(stance) >= 5, "no stance frames found"
+    # contiguous run of stance frames (the stride starts mid-flight)
+    runs, current = [], [stance[0]]
+    for a, b in zip(stance, stance[1:]):
+        if b == a + 1:
+            current.append(b)
+        else:
+            runs.append(current)
+            current = [b]
+    runs.append(current)
+    longest = max(runs, key=len)
+    drift = abs(world_x[longest[-1]] - world_x[longest[0]])
+    assert drift < 2.0, f"foot skates {drift:.2f} cm during stance"
+
+
 def test_feet_reach_the_ground(data):
     """Sanity on the vertical axis: in every gait the foot bodies come within
     a few cm of z = 0 at some phase (the sim ground plane)."""

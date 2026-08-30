@@ -1,0 +1,16 @@
+# Unreal Engine build/derived output. Everything the repo tracks under
+# unreal/ is text: .uproject, Config/*.ini, Source/**, Content/Data/*.json.
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.sln
+*.suo
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.vs/
+.vsconfig
+*.xcodeproj/
+*.xcworkspace/
