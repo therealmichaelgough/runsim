@@ -61,6 +61,16 @@ survey/plan.
   (`experiments/phase3_2drunning/make_seed.py`, ~20 s) and chain solutions
   across speeds/grades (homotopy). Pass a near-converged (iteration-capped)
   solution forward as a guess whenever its objective is sane (< 50).
+- **Tracking with sphere contact: ground the reference INTO the floor.**
+  A grazing reference (spheres just touching) is force-free at the guess
+  while measured GRFs demand ~2.4 BW, and the dynamically-feasible
+  manifold near a force-free guess is ballistic — three 6-7 h solves flew
+  or collapsed before this was understood. `retarget.ground_reference`
+  (clearance 0.013 m → heel sphere ~1.2 cm deep → ~2.6 BW at deepest
+  stance, pre-flight-verify with a static realizeDynamics check) plus a
+  warm-start continuation produced the validated 3D seed (obj 5.78,
+  joints 3-10 deg RMS, GRFs at measured values). Scale the model to the
+  subject first (`scripts/scale_lai_to_subject.py`).
 - **Sweeps run parallel by default** (`runsim.tier3.parallel`): one
   process per point, each seeded from the nearest *completed* solution,
   threads split fairly via OPENSIM_MOCO_PARALLEL, per-point fragment
