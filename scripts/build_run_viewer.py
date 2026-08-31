@@ -6,16 +6,22 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "docs" / "run_viewer.html"
 
-MARKER = "/*__GAIT_DATA__*/null"
+MARKERS = {
+    "/*__GAIT_DATA__*/null": "viewer_gaits.json",
+    "/*__ARM_DATA__*/null": "viewer_arms.json",  # optional; null when absent
+}
 
 
 def main() -> None:
     template = (HERE / "run_viewer_template.html").read_text(encoding="utf-8")
-    data = (HERE / "viewer_gaits.json").read_text(encoding="utf-8")
-    if MARKER not in template:
-        raise SystemExit("marker not found in template")
+    for marker, fname in MARKERS.items():
+        if marker not in template:
+            raise SystemExit(f"marker {marker} not found in template")
+        src = HERE / fname
+        if src.exists():
+            template = template.replace(marker, src.read_text(encoding="utf-8"))
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(template.replace(MARKER, data), encoding="utf-8")
+    OUT.write_text(template, encoding="utf-8")
     print(f"wrote {OUT} ({OUT.stat().st_size / 1024:.0f} KB)")
 
 

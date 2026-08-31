@@ -49,7 +49,7 @@
 
 <canvas id="stage"></canvas>
 <div class="hud">
-  <div class="brand">RUNSIM TRACK<small>Moco 2D solutions | metabolic objective</small></div>
+  <div class="brand">RUNSIM TRACK<small>Moco 2D solutions | metabolic objective | arms: 3D seed @ 3 m/s</small></div>
   <div class="metrics">
     <div class="metric gait"><b id="mGait">RUN</b><span>gait</span></div>
     <div class="metric"><b id="mSpeed">3.0</b><span>m/s</span></div>
@@ -70,6 +70,7 @@
 
 <script>
 const DATA = /*__GAIT_DATA__*/null;
+const ARMS = /*__ARM_DATA__*/null; // 3D-seed arm cycle, phase-locked to legs
 
 const S = DATA.stations.reduce((m, n, i) => (m[n] = i, m), {});
 const speedGaits = DATA.gaits.filter(g => g.grade === 0).sort((a, b) => a.speed - b.speed);
@@ -242,10 +243,21 @@ function draw(now) {
   // runner: rotate sim-frame pose by local slope, place on terrain
   const cos = Math.cos(theta), sin = Math.sin(theta);
   const base = [x, terrainH(x)];
+  const rot = ([rx, ry]) => [base[0] + rx * cos - ry * sin, base[1] + rx * sin + ry * cos];
   const P = {};
-  for (let p = 0; p < NP; p++) {
-    const [rx, ry] = B.pose[p];
-    P[DATA.stations[p]] = toPx(base[0] + rx * cos - ry * sin, base[1] + rx * sin + ry * cos);
+  for (let p = 0; p < NP; p++) P[DATA.stations[p]] = toPx(...rot(B.pose[p]));
+
+  // arm chains: 3D-seed offsets anchored at the shoulder, same phase
+  let ARM_PX = null;
+  if (ARMS) {
+    const f = phase * ARMS.frames.length, i0 = Math.floor(f) % ARMS.frames.length,
+          i1 = (i0 + 1) % ARMS.frames.length, u = f - Math.floor(f);
+    const sh = B.pose[S.shoulder];
+    ARM_PX = ARMS.frames[i0].map((A, k) => {
+      const C = ARMS.frames[i1][k];
+      const off = [A[0] + (C[0] - A[0]) * u, A[1] + (C[1] - A[1]) * u];
+      return toPx(...rot([sh[0] + off[0], sh[1] + off[1]]));
+    });
   }
   const limb = (names, color, width) => {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -253,16 +265,25 @@ function draw(now) {
     names.forEach((n, i) => i === 0 ? ctx.moveTo(...P[n]) : ctx.lineTo(...P[n]));
     ctx.stroke();
   };
-  // far (right) leg, dim
+  const armStroke = (idx, color, width) => {
+    if (!ARM_PX) return;
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(...ARM_PX[idx]); ctx.lineTo(...ARM_PX[idx + 1]); ctx.lineTo(...ARM_PX[idx + 2]);
+    ctx.stroke();
+  };
+  // far (right) leg + arm, dim
   limb(["hip_r", "knee_r", "ankle_r", "heel_r"], "#3F5E85", 7);
   limb(["heel_r", "toe_r"], "#3F5E85", 6);
+  armStroke(3, "#3F5E85", 6);
   // torso + neck + head
   limb(["pelvis", "lumbar", "shoulder", "head"], "#7FA8CF", 9);
   ctx.beginPath(); ctx.arc(...P["head"], 0.075 * scale, 0, 7);
   ctx.fillStyle = "#7FA8CF"; ctx.fill();
-  // near (left) leg, bright
+  // near (left) leg + arm, bright
   limb(["hip_l", "knee_l", "ankle_l", "heel_l"], "#8FC7E8", 7);
   limb(["heel_l", "toe_l"], "#8FC7E8", 6);
+  armStroke(0, "#8FC7E8", 6);
   // joint markers (mocap dots)
   ctx.fillStyle = "#64D8C6";
   for (const n of ["hip_l", "knee_l", "ankle_l", "knee_r", "ankle_r", "lumbar", "shoulder"]) {
