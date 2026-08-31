@@ -17,15 +17,15 @@ namespace
 	const FLinearColor MutedColor(0.32f, 0.40f, 0.50f, 1.0f);
 }
 
-FString ARunsimHUD::FormatPace(float SpeedMps)
+FString ARunsimHUD::FormatPace(float SpeedMps, float DistanceMeters)
 {
 	if (SpeedMps <= 0.05f)
 	{
 		return TEXT("--:--");
 	}
-	const float SecondsPerKm = 1000.0f / SpeedMps;
-	const int32 Minutes = FMath::FloorToInt(SecondsPerKm / 60.0f);
-	const int32 Seconds = FMath::RoundToInt(SecondsPerKm - Minutes * 60.0f);
+	const float SecondsPer = DistanceMeters / SpeedMps;
+	const int32 Minutes = FMath::FloorToInt(SecondsPer / 60.0f);
+	const int32 Seconds = FMath::RoundToInt(SecondsPer - Minutes * 60.0f);
 	// Guard the 59.6 -> "60" rounding case.
 	return (Seconds >= 60)
 		? FString::Printf(TEXT("%d:00"), Minutes + 1)
@@ -85,6 +85,10 @@ void ARunsimHUD::DrawHUD()
 		FormatPace(Speed), ValueColor);
 	X += MetricWidth + MetricGap;
 
+	DrawMetric(X, Y, MetricWidth, TEXT("PACE  MIN/MI"),
+		FormatPace(Speed, 1609.344f), ValueColor);
+	X += MetricWidth + MetricGap;
+
 	DrawMetric(X, Y, MetricWidth, TEXT("GRADE"),
 		FString::Printf(TEXT("%s%.1f%%"), GradePercent >= 0.0f ? TEXT("+") : TEXT(""),
 			GradePercent), ValueColor);
@@ -112,7 +116,7 @@ void ARunsimHUD::DrawHUD()
 			? TEXT("Moco solutions | 3D-sourced gaits (arms live)")
 			: TEXT("Moco solutions | 2D-sourced gaits, metabolic objective (no arms)"),
 		LabelColor, PanelPadding, BottomY, Small, 1.0f);
-	DrawText(FString(TEXT("W/S or UP/DOWN speed   H/F hills   SPACE pause   "))
+	DrawText(FString(TEXT("W/S or UP/DOWN speed   H/F hills   SPACE pause   ESC quit   "))
 			+ TEXT("RIGHT-MOUSE orbit   WHEEL zoom   R reset view"),
 		MutedColor, PanelPadding, BottomY + 20.0f, Small, 1.0f);
 

@@ -62,6 +62,7 @@ protected:
 	void OnOrbitReleased();
 	void OnTogglePause();
 	void OnResetView();
+	void OnQuit();
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;

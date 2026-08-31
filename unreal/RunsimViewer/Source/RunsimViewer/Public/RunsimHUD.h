@@ -25,7 +25,7 @@ private:
 	void DrawMetric(float X, float Y, float Width, const FString& Label,
 		const FString& Value, const FLinearColor& ValueColor);
 
-	static FString FormatPace(float SpeedMps);
+	static FString FormatPace(float SpeedMps, float DistanceMeters = 1000.0f);
 
 	static constexpr float PanelPadding = 18.0f;
 	static constexpr float MetricWidth = 132.0f;

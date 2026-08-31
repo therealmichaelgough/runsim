@@ -99,6 +99,16 @@ void ARunsimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		&ARunsimPawn::OnTogglePause);
 	PlayerInputComponent->BindAction(TEXT("RunsimResetView"), IE_Pressed, this,
 		&ARunsimPawn::OnResetView);
+	PlayerInputComponent->BindAction(TEXT("RunsimQuit"), IE_Pressed, this,
+		&ARunsimPawn::OnQuit);
+}
+
+void ARunsimPawn::OnQuit()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		PC->ConsoleCommand(TEXT("quit"));
+	}
 }
 
 void ARunsimPawn::InputSpeed(float Value)
