@@ -92,6 +92,7 @@ bool URunsimGaitData::LoadFromFile(const FString& FullPath)
 	GradeGaits.Reset();
 	GradeKeys.Reset();
 	Flat3Index = INDEX_NONE;
+	ArmGaitIndex = INDEX_NONE;
 
 	FString Raw;
 	if (!FFileHelper::LoadFileToString(Raw, *FullPath))
@@ -375,8 +376,20 @@ void URunsimGaitData::BuildIndices()
 
 	// Same partition as the web viewer: flat gaits drive the speed blend,
 	// the 3.0 m/s metabolic-objective gaits drive the grade blend.
+	// 3D-sourced gaits are the ARM SOURCE only: they never join either
+	// blend (their 2D neighbours lack the arm bodies, and a duplicate
+	// speed key would break the bracket), and their arm bodies are
+	// grafted onto the blended pose in GetBlendedPose.
 	for (int32 i = 0; i < Gaits.Num(); ++i)
 	{
+		if (Gaits[i].SourceKind.Equals(TEXT("3d"), ESearchCase::IgnoreCase))
+		{
+			if (ArmGaitIndex == INDEX_NONE)
+			{
+				ArmGaitIndex = i;
+			}
+			continue;
+		}
 		if (FMath::IsNearlyZero(Gaits[i].Grade, 1.0e-6f))
 		{
 			SpeedGaits.Add(i);
@@ -546,6 +559,28 @@ bool URunsimGaitData::GetBlendedPose(float Speed, float Grade, float Phase,
 		const FQuat QGrade = FQuat::Slerp(RotGA[b], RotGB[b], GW).GetNormalized();
 		const FQuat QDelta = ComposeThen(RotF[b].Inverse(), QGrade);
 		Out.BodyRotation[b] = ComposeThen(QSpeed, QDelta).GetNormalized();
+	}
+
+	// Arm overlay: bodies no blend gait provides (the arm chain) come from
+	// the 3D arm-source gait, sampled at the same phase. The exporter has
+	// already rolled its frames onto the 2D event convention, so the arms
+	// swing against the correct leg. Positions are pelvis-relative in both
+	// families, so the graft is a straight substitution.
+	if (ArmGaitIndex != INDEX_NONE)
+	{
+		TArray<FVector> PosArm;
+		TArray<FQuat> RotArm;
+		TArray<bool> ValArm;
+		SampleGait(ArmGaitIndex, Phase, PosArm, RotArm, ValArm);
+		for (int32 b = 0; b < NumGlobalBodies; ++b)
+		{
+			if (!Out.bBodyValid[b] && ValArm[b])
+			{
+				Out.bBodyValid[b] = true;
+				Out.BodyPosition[b] = PosArm[b];
+				Out.BodyRotation[b] = RotArm[b];
+			}
+		}
 	}
 
 	// lerp2() from the web viewer, for the scalar metadata.

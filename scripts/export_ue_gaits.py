@@ -150,10 +150,15 @@ GAITS = [
 # --- extension point: 3D gaits with arms -----------------------------------
 # Entries: (solution .sto, speed, grade, cot).  Solutions are read with
 # MocoTrajectory (they carry states, not a plain fullstride table) and posed
-# on MODEL_3D, which owns the arm bodies.  Left empty in v1: the only 3D seed
-# on disk is seed3d_tracking_airborne.sto, a REJECTED solve (the runner is
-# ballistic), so shipping it would be worse than shipping nothing.
-GAITS_3D: list[tuple[str, float, float, float | None]] = []
+# on MODEL_3D, which owns the arm bodies.
+# The validated attempt-5 tracking seed (obj 5.78, joints 3-10 deg RMS,
+# GRFs at measured values — see AGENTS_LOG 2026-08-30). Serves as the arm
+# source only: the renderer excludes 3D gaits from the speed/grade blends
+# and grafts their arm bodies onto the blended pose, phase-aligned at
+# export (frames rolled to the 2D flat-3.0 event convention).
+GAITS_3D: list[tuple[str, float, float, float | None]] = [
+    ("experiments/phase3_3drunning/seed3d_tracking.sto", 3.0, 0.0, None),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -357,6 +362,24 @@ def coordinate_values(path: Path) -> tuple[np.ndarray, dict[str, np.ndarray]]:
     return t, data
 
 
+def align_phase(g3d: dict, bodies_3d: list[str],
+                g2d: dict, bodies_2d: list[str]) -> int:
+    """Cyclic shift (frames) that best aligns a 3D gait's leg events with
+    the 2D flat-3.0 gait, via cross-correlation of the forward (UE x)
+    position of calcn_l relative to the pelvis. The two solution families
+    start their cycles at different events; arms grafted onto the blended
+    2D pose must swing against the correct leg."""
+    def signal(g, bodies):
+        b = bodies.index("calcn_l") * 7  # 7 floats per body: pos3 + quat4
+        s = np.array([f[b] for f in g["frames"]], dtype=float)
+        return s - s.mean()
+
+    a, b = signal(g3d, bodies_3d), signal(g2d, bodies_2d)
+    n = len(a)
+    scores = [float(np.dot(np.roll(a, -k), b)) for k in range(n)]
+    return int(np.argmax(scores))
+
+
 def bake_gait(model, state, bodies: list[str], path: Path) -> dict:
     """Pose the model at NFRAMES phases and record per-body UE transforms."""
     t, data = coordinate_values(path)
@@ -442,6 +465,12 @@ def main() -> None:
             g = bake_gait(m3d, s3d, bodies_3d, path)
             g.update(speed=speed, grade=round(grade, 5), cot=cot,
                      src=path.name, source="3d", bodies=bodies_3d)
+            shift = align_phase(g, bodies_3d,
+                                next(x for x in gaits
+                                     if x["speed"] == 3.0 and x["grade"] == 0),
+                                bodies_2d)
+            g["frames"] = g["frames"][shift:] + g["frames"][:shift]
+            print(f"{path.name}: 3d arm source, phase-rolled {shift} frames")
             gaits.append(g)
 
     out = {

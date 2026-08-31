@@ -149,7 +149,9 @@ def _frame_transforms(gait, frame_index):
 def test_json_shape(data):
     assert data["format"] == "runsim.ue.gaits"
     assert data["nframes"] == ue.NFRAMES
-    assert len(data["gaits"]) == 14
+    assert len(data["gaits"]) == 15
+    assert sum(g["source"] == "2d" for g in data["gaits"]) == 14
+    assert sum(g["source"] == "3d" for g in data["gaits"]) == 1
     for g in data["gaits"]:
         assert len(g["frames"]) == data["nframes"]
         assert all(len(f) == 7 * len(g["bodies"]) for f in g["frames"])
@@ -314,16 +316,18 @@ def test_leg_segments_are_symmetric(data):
             by_name[right]["lengthCm"], abs=0.5)
 
 
-def test_arm_segments_present_but_absent_from_2d_gaits(data):
-    """The extension point: arm segments are declared, and every v1 gait is
-    2D-sourced so their bodies are missing -- the renderer must tolerate it."""
+def test_arm_segments_present_and_sourced_from_3d_gaits(data):
+    """Arm segments are declared; 2D-sourced gaits lack the arm bodies (the
+    renderer hides/grafts) while 3D-sourced gaits must carry all of them."""
     names = {s["name"] for s in data["segments"]}
     assert {"upperarm_l", "forearm_l", "upperarm_r", "forearm_r"} <= names
     arm_bodies = {s["body"] for s in data["segments"]
                   if s["class"] in ("upperarm", "forearm")}
     for g in data["gaits"]:
-        assert g["source"] == "2d"
-        assert not (arm_bodies & set(g["bodies"]))
+        if g["source"] == "2d":
+            assert not (arm_bodies & set(g["bodies"]))
+        else:
+            assert arm_bodies <= set(g["bodies"])
 
 
 def test_stride_data_matches_web_viewer_cadence(data):
@@ -373,9 +377,12 @@ def _frames_array(gait):
 def test_blend_at_a_solved_point_reproduces_that_gait(data):
     """At an exactly-solved (speed, grade) the blend must be the identity:
     the speed bracket lands on the gait and the grade delta cancels."""
-    speed_gaits = sorted([g for g in data["gaits"] if g["grade"] == 0.0],
+    # 3D-sourced gaits are the arm source only and never join the blends
+    # (mirrors URunsimGaitData::BuildIndices)
+    blendable = [g for g in data["gaits"] if g["source"] != "3d"]
+    speed_gaits = sorted([g for g in blendable if g["grade"] == 0.0],
                          key=lambda g: g["speed"])
-    grade_gaits = sorted([g for g in data["gaits"]
+    grade_gaits = sorted([g for g in blendable
                           if g["speed"] == 3.0 and "_met" in g["src"]],
                          key=lambda g: g["grade"])
     flat3 = next(g for g in speed_gaits if g["speed"] == 3.0)

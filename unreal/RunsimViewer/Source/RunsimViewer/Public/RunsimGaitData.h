@@ -128,4 +128,5 @@ private:
 	TArray<int32> GradeGaits;          // 3.0 m/s gaits, ascending grade
 	TArray<float> GradeKeys;           // their grades, same order
 	int32 Flat3Index = INDEX_NONE;     // the flat 3.0 m/s reference gait
+	int32 ArmGaitIndex = INDEX_NONE;   // 3D arm-source gait (never blended)
 };
