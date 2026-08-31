@@ -55,6 +55,33 @@ limits model; Weyand's force hypothesis; di Prampero's energetics).
 This is the capstone experiment — it needs a validated 3D model and
 ideally Tier-2 tissue limits to be honest about injury-bounded regimes.
 
+## 5. Direction change: curves, cuts, and agility
+
+Inherently 3D — the first experiment family that *cannot* be
+approximated in the sagittal plane, and therefore a natural showcase for
+the LaiUhlrich milestone. Three sub-experiments, in ascending
+formulation difficulty:
+
+- **Steady curve running.** Speed and cost vs turn radius, lean angle,
+  inside/outside-leg asymmetry. Formulation: periodicity in a rotating
+  frame — one step periodic up to a fixed yaw rotation (a
+  MocoPeriodicityGoal variant with a rotated state pairing, or an
+  explicit yaw-offset constraint). Validation anchors: Chang & Kram 2007
+  (curve sprinting is limited by inside-leg force generation), Usherwood
+  & Wilson's bend-running work, 200 m lane-dependent performance data.
+  Tier-0 payoff: a radius-dependent cost multiplier for race modeling on
+  tracks and trails.
+- **Discrete cut maneuvers.** Finite-horizon (non-periodic) problem:
+  approach at speed v, leave with the velocity vector rotated by
+  30/60/90 degrees, minimize time or effort. Emergent questions: braking
+  vs redirecting step strategies, knee valgus/rotation loading during
+  the plant step — a direct bridge to Tier-2 tissue loads (peak ACL-
+  relevant loading vs cut angle and speed is one of the most practically
+  interesting tissue questions in the sport-science literature).
+- **Agility sequences.** Chained cuts / slalom as receding-horizon
+  optimization; shares the non-periodic machinery with the technical-
+  terrain experiment (#3) — build that formulation once, use it twice.
+
 ## Notes
 
 - 1 and 2 are Tier-3-ready today (2D), and become publication-grade
@@ -62,3 +89,7 @@ ideally Tier-2 tissue limits to be honest about injury-bounded regimes.
 - 3 needs formulation work (non-periodic horizon) before any solving.
 - 4 depends on the others: it consumes the validated model plus the
   max-speed formulation from 2.
+- 5 is the flagship application of the 3D milestone (impossible in 2D);
+  steady curves need only a periodicity variant, while cuts share the
+  non-periodic horizon with 3, and cut-maneuver tissue loading is a
+  prime Tier-2 target.
