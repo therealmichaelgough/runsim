@@ -100,6 +100,9 @@ Next steps, in order:
    models (tendon damage ~ strain^9).
 3. Optional: MyoSuite RL tier, FEBio/OpenSim JAM for ligament/bone stress,
    OpenCap personalization.
+4. Experiment backlog (docs/future_experiments.md): altered gravity,
+   superhuman-muscle speed limits, technical-terrain optimal running,
+   simulated-vs-literature physiological limiting factors.
 
 ## Conventions
 
