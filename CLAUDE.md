@@ -78,6 +78,15 @@ survey/plan.
   solve instead of the sum. Reserve sequential homotopy chains for the
   first traversal into a new regime (nothing close enough to seed from).
   Log launched PIDs and chained finishers in AGENTS_LOG.md.
+- **Watch solver HEALTH, not just completion.** IPOPT iteration lines
+  with an `r` suffix are restoration phase; a solve showing sustained
+  restoration with large/growing inf_pr will not recover — kill it
+  (7 h were lost learning this). Long-solve watchers must parse the
+  iteration tail and auto-kill unambiguous divergence. Related:
+  MocoAverageSpeedGoal is an endpoint CONSTRAINT — never ask for a
+  speed far from what the guess actually achieves (the tracking seed
+  advances ~1.7 m/s due to treadmill-frame slip); homotope speed from
+  the guess's effective value.
 - `analyzeMocoTrajectory` output paths are **regex patterns**
   (`.*total_metabolic_rate`), not literal `/component|output` paths — a
   literal `|` path returns an empty table.
