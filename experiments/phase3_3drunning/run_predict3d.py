@@ -31,7 +31,10 @@ def main(max_iterations: int = 2000) -> None:
     done = {round(r["speed"], 3) for r in log}
     guess = SEED
     for speed in SPEEDS:
-        prior = next((r for r in log if round(r["speed"], 3) == round(speed, 3)), None)
+        # only entries carrying a 'solution' field count as completed —
+        # legacy/smoke-test rows in the log must not skip a real solve
+        prior = next((r for r in log if round(r["speed"], 3) == round(speed, 3)
+                      and "solution" in r), None)
         if prior is not None:
             if prior.get("objective", 1e9) < 100:
                 guess = HERE / Path(prior["solution"]).name
