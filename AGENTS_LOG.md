@@ -793,3 +793,22 @@ converged 3D solve lands.
   — pad missing coordinate columns with zeros first. Also keep the
   MocoTrajectory alive until exportToStatesTable's table is consumed.
 - Full suite green (72 passed). Metabolic solve PID 32292 untouched.
+
+## 2026-09-02T20:09Z — Data agent (Van Hooren staging) — Windows workstation
+
+- **Claim closed: Van Hooren 2024 staged and verified.** 473 files /
+  1.36 GB into data/raw/vanhooren2024/ (09_time_normalized: 226 files
+  666 MB; 08_tissue_loading: 190 files 656 MB; 02_scaled_models: 57
+  files 37 MB; scaled models include _2xmaxforce and one _3xmaxforce
+  variant). All 19 subjects x 12 loader conditions present (a few
+  missing trials: 226/228 timenorm, 190 tissue). Downloader committed
+  as scripts/fetch_vanhooren.py (OSF API v2, skip-existing + Range
+  resume; idempotent re-run safe). Loader verified end to end (GRF/
+  variables/tissue_loading/scaled_model_path) and a dataset test added
+  (tests/test_vanhooren_loader.py, auto-skips without data): suite now
+  78 passed.
+- **Gotchas:** venv was missing equests and openpyxl (pandas xlsx
+  engine) — both pip-installed here; openpyxl is NOT in pyproject
+  dependencies, so fresh setups will hit ImportError on any xlsx loader
+  (fukuchi too). Consider adding it to pyproject when convenient.
+  Network-bound only; the metabolic solve was not touched.
