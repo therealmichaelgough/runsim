@@ -566,21 +566,55 @@ bool URunsimGaitData::GetBlendedPose(float Speed, float Grade, float Phase,
 	// Arm overlay: bodies no blend gait provides (the arm chain) come from
 	// the 3D arm-source gait, sampled at the same phase. The exporter has
 	// already rolled its frames onto the 2D event convention, so the arms
-	// swing against the correct leg. Positions are pelvis-relative in both
-	// families, so the graft is a straight substitution.
+	// swing against the correct leg.
+	//
+	// The graft is TORSO-RELATIVE, not a straight substitution: the 3D
+	// tracking solution's torso sits in a different place than the blended
+	// 2D torso (lateral drift the pelvis_tx-relative baking does not remove,
+	// ~35 cm, plus 10-20 deg of torso lean mismatch), so pasting its
+	// pelvis-relative arm transforms leaves the arms floating ~37 cm from
+	// the shoulders.  Instead each grafted body is expressed relative to the
+	// arm gait's OWN torso and re-composed onto the blended torso, which
+	// pins the shoulder attachment exactly.  Numeric invariant:
+	// tests/test_ue_export.py::test_blended_arm_graft_attaches_to_shoulder.
 	if (ArmGaitIndex != INDEX_NONE)
 	{
 		TArray<FVector> PosArm;
 		TArray<FQuat> RotArm;
 		TArray<bool> ValArm;
 		SampleGait(ArmGaitIndex, Phase, PosArm, RotArm, ValArm);
+
+		const int32 TorsoIndex = BodyNames.IndexOfByKey(FName(TEXT("torso")));
+		const bool bReanchor = TorsoIndex != INDEX_NONE
+			&& Out.bBodyValid.IsValidIndex(TorsoIndex) && Out.bBodyValid[TorsoIndex]
+			&& ValArm.IsValidIndex(TorsoIndex) && ValArm[TorsoIndex];
+		const FTransform BlendedTorso = bReanchor
+			? FTransform(Out.BodyRotation[TorsoIndex], Out.BodyPosition[TorsoIndex])
+			: FTransform::Identity;
+		const FTransform ArmTorsoInverse = bReanchor
+			? FTransform(RotArm[TorsoIndex], PosArm[TorsoIndex]).Inverse()
+			: FTransform::Identity;
+
 		for (int32 b = 0; b < NumGlobalBodies; ++b)
 		{
 			if (!Out.bBodyValid[b] && ValArm[b])
 			{
 				Out.bBodyValid[b] = true;
-				Out.BodyPosition[b] = PosArm[b];
-				Out.BodyRotation[b] = RotArm[b];
+				if (bReanchor)
+				{
+					// C = A * B applies A then B: body -> arm-torso frame,
+					// then out through the blended torso.
+					const FTransform InArmTorso =
+						FTransform(RotArm[b], PosArm[b]) * ArmTorsoInverse;
+					const FTransform World = InArmTorso * BlendedTorso;
+					Out.BodyPosition[b] = World.GetLocation();
+					Out.BodyRotation[b] = World.GetRotation().GetNormalized();
+				}
+				else
+				{
+					Out.BodyPosition[b] = PosArm[b];
+					Out.BodyRotation[b] = RotArm[b];
+				}
 			}
 		}
 	}

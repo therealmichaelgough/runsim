@@ -470,3 +470,133 @@ def test_feet_reach_the_ground(data):
         idx = g["bodies"].index("calcn_r")
         lowest = min(f[idx * 7 + 2] for f in g["frames"])
         assert -3.0 < lowest < 12.0, (g["src"], lowest)
+
+
+# --------------------------------------------------------------------------
+# (e) the arm graft in blended-2D mode
+#
+# The 3D arm-source solution's torso does not coincide with the blended 2D
+# torso (its baked frames keep the tracked solution's lateral drift, ~35 cm in
+# UE y, plus 10-20 deg of torso-lean mismatch), so grafting its pelvis-relative
+# arm transforms verbatim leaves the arms floating ~37 cm off the shoulders --
+# the user-verified misplacement.  URunsimGaitData::GetBlendedPose therefore
+# re-anchors the graft torso-relative; this is the port of that rule.
+# --------------------------------------------------------------------------
+
+
+def _xf(pos, quat):
+    """4x4 homogeneous transform from a pos (cm) + quaternion [x,y,z,w]."""
+    T = np.eye(4)
+    T[:3, :3] = ue.quat_to_mat(quat)
+    T[:3, 3] = pos
+    return T
+
+
+def _graft_arm(frames3d, bodies3d, blend_frames, blend_bodies, frame, body,
+               torso_relative):
+    """Port of the arm overlay in URunsimGaitData::GetBlendedPose.
+
+    torso_relative=True is the shipped rule: express the grafted body in the
+    arm gait's own torso frame, then compose onto the blended torso.
+    torso_relative=False is the pre-fix straight substitution, kept here to
+    document the failure mode this invariant guards against.
+    """
+    a = bodies3d.index(body)
+    A = _xf(frames3d[frame, a, :3], frames3d[frame, a, 3:])
+    if not torso_relative:
+        return A
+    t3 = bodies3d.index("torso")
+    t2 = blend_bodies.index("torso")
+    T3 = _xf(frames3d[frame, t3, :3], frames3d[frame, t3, 3:])
+    T2 = _xf(blend_frames[frame, t2, :3], blend_frames[frame, t2, 3:])
+    return T2 @ np.linalg.inv(T3) @ A
+
+
+def test_blended_arm_graft_attaches_to_shoulder(data):
+    """In blended-2D mode the grafted upper arm must hang from the blended
+    torso's shoulder at every phase (attachment error < 2 cm), and the naive
+    substitution must be measurably broken (> 10 cm) so this test cannot
+    silently pass for the wrong reason."""
+    arm_src = next(g for g in data["gaits"] if g["source"] == "3d")
+    F3 = _frames_array(arm_src)
+
+    for blend_speed in (2.5, 3.0):
+        # at an exactly-solved flat speed the blend is that gait itself
+        # (pinned by test_blend_at_a_solved_point_reproduces_that_gait)
+        blended = next(g for g in data["gaits"] if g["source"] == "2d"
+                       and g["speed"] == blend_speed and g["grade"] == 0.0)
+        F2 = _frames_array(blended)
+
+        for arm in ("humerus_l", "humerus_r"):
+            a3 = arm_src["bodies"].index(arm)
+            t3 = arm_src["bodies"].index("torso")
+            t2 = blended["bodies"].index("torso")
+
+            # the shoulder: the humerus origin in the arm gait's own torso
+            # frame -- constant by construction of the model (ball joint)
+            sh = []
+            for f in range(data["nframes"]):
+                R = ue.quat_to_mat(F3[f, t3, 3:])
+                sh.append(R.T @ (F3[f, a3, :3] - F3[f, t3, :3]))
+            sh = np.asarray(sh)
+            assert np.linalg.norm(sh - sh.mean(0), axis=1).max() < 0.5
+            shoulder_local = sh.mean(0)
+
+            worst_fixed, worst_naive = 0.0, 0.0
+            for f in range(data["nframes"]):
+                T2 = _xf(F2[f, t2, :3], F2[f, t2, 3:])
+                expected = (T2 @ np.append(shoulder_local, 1.0))[:3]
+                for rule, worst in (("fixed", None), ("naive", None)):
+                    G = _graft_arm(F3, arm_src["bodies"], F2,
+                                   blended["bodies"], f, arm,
+                                   torso_relative=(rule == "fixed"))
+                    err = float(np.linalg.norm(G[:3, 3] - expected))
+                    if rule == "fixed":
+                        worst_fixed = max(worst_fixed, err)
+                    else:
+                        worst_naive = max(worst_naive, err)
+
+            assert worst_fixed < 2.0, (
+                f"{arm} detaches {worst_fixed:.1f} cm from the blended "
+                f"shoulder at {blend_speed} m/s")
+            assert worst_naive > 10.0, (
+                "naive graft unexpectedly attached -- invariant would not "
+                "discriminate")
+
+
+def test_blended_arm_graft_preserves_elbow(data):
+    """The torso-relative composition is rigid across the whole arm chain:
+    the ulna must keep exactly its solution's own offset from the humerus."""
+    arm_src = next(g for g in data["gaits"] if g["source"] == "3d")
+    F3 = _frames_array(arm_src)
+    blended = next(g for g in data["gaits"] if g["source"] == "2d"
+                   and g["speed"] == 3.0 and g["grade"] == 0.0)
+    F2 = _frames_array(blended)
+
+    for up, lo in (("humerus_l", "ulna_l"), ("humerus_r", "ulna_r")):
+        iu = arm_src["bodies"].index(up)
+        il = arm_src["bodies"].index(lo)
+        for f in range(0, data["nframes"], 6):
+            own = np.linalg.norm(F3[f, il, :3] - F3[f, iu, :3])
+            GU = _graft_arm(F3, arm_src["bodies"], F2, blended["bodies"],
+                            f, up, torso_relative=True)
+            GL = _graft_arm(F3, arm_src["bodies"], F2, blended["bodies"],
+                            f, lo, torso_relative=True)
+            grafted = np.linalg.norm(GL[:3, 3] - GU[:3, 3])
+            assert grafted == pytest.approx(own, abs=1e-6)
+
+
+def test_playback_mode_arms_attached(data):
+    """In full-3D playback every solution's own arms stay on its own torso."""
+    for g in [g for g in data["gaits"] if g["source"] == "3d"]:
+        F = _frames_array(g)
+        t = g["bodies"].index("torso")
+        for arm in ("humerus_l", "humerus_r"):
+            a = g["bodies"].index(arm)
+            sh = []
+            for f in range(data["nframes"]):
+                R = ue.quat_to_mat(F[f, t, 3:])
+                sh.append(R.T @ (F[f, a, :3] - F[f, t, :3]))
+            sh = np.asarray(sh)
+            spread = np.linalg.norm(sh - sh.mean(0), axis=1).max()
+            assert spread < 1.0, (g["src"], arm, spread)
