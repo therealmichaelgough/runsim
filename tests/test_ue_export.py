@@ -348,8 +348,9 @@ def test_per_frame_grf_and_met_contract(data):
             rates = g["metRateWkg"]
             assert len(rates) == data["nframes"]
             mean = sum(rates) / len(rates)
-            # COT ~3.3-6.3 J/kg/m at 2.5-5 m/s -> mean rate roughly 8-35 W/kg
-            assert 5.0 < mean < 45.0, (g["src"], mean)
+            # steep downhill is the cheapest condition (COT 2.80 at -9 deg);
+            # flat/uphill and faster gaits run higher
+            assert 3.0 < mean < 45.0, (g["src"], mean)
 
 
 def test_stride_data_matches_web_viewer_cadence(data):
