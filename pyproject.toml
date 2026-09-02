@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "requests"]  # requests: dataset fetch scripts
 
 [build-system]
 requires = ["setuptools>=68"]
