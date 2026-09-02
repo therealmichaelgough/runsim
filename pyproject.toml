@@ -8,6 +8,7 @@ dependencies = [
     "numpy",
     "pandas",
     "matplotlib",
+    "openpyxl",  # xlsx dataset loaders (Van Hooren workbooks)
 ]
 
 [project.optional-dependencies]
