@@ -7,8 +7,13 @@
 #include "RunsimViewer.h"
 
 #include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Engine/SkyLight.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
@@ -100,18 +105,19 @@ void ARunsimGameMode::SpawnLighting()
 	Params.SpawnCollisionHandlingOverride =
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	// Key light, low and from ahead-right so the slope reads in shading.
-	// (No sky light: a cubemap is an asset, so a dim fill light stands in.)
+	// Key light (the sun): low afternoon angle so slopes read in shading.
+	// A dim cool fill keeps shadowed slopes from going black.
 	struct FLightSpec
 	{
 		FRotator Rotation;
 		float Intensity;
 		FLinearColor Color;
 		bool bCastShadows;
+		bool bSun;
 	};
 	const FLightSpec Specs[] = {
-		{ FRotator(-38.0f, 145.0f, 0.0f), 7.0f, FLinearColor(1.0f, 0.96f, 0.88f, 1.0f), true },
-		{ FRotator(-20.0f, -35.0f, 0.0f), 2.2f, FLinearColor(0.55f, 0.68f, 0.90f, 1.0f), false },
+		{ FRotator(-32.0f, 145.0f, 0.0f), 8.0f, FLinearColor(1.0f, 0.95f, 0.85f, 1.0f), true, true },
+		{ FRotator(-20.0f, -35.0f, 0.0f), 1.2f, FLinearColor(0.55f, 0.68f, 0.90f, 1.0f), false, false },
 	};
 
 	for (const FLightSpec& Spec : Specs)
@@ -132,9 +138,56 @@ void ARunsimGameMode::SpawnLighting()
 			LightComp->SetIntensity(Spec.Intensity);
 			LightComp->SetLightColor(Spec.Color);
 			LightComp->SetCastShadows(Spec.bCastShadows);
+			if (Spec.bSun)
+			{
+				if (UDirectionalLightComponent* Sun =
+					Cast<UDirectionalLightComponent>(LightComp))
+				{
+					// Drives the procedural sky below.
+					Sun->SetAtmosphereSunLight(true);
+				}
+			}
 		}
 		Light->SetActorRotation(Spec.Rotation);
 	}
 
-	UE_LOG(LogRunsim, Log, TEXT("spawned runsim scene (terrain, runner, lights)"));
+	// A procedural sky: USkyAtmosphereComponent is fully analytic (no
+	// cubemap), and a real-time-capture sky light turns it into ambient
+	// bounce -- both spawnable engine classes, so the text-only constraint
+	// holds.  Height fog folds the far terrain into the horizon haze,
+	// keeping the ~1 km chunk window and the draw distance consistent.
+	World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(),
+		FTransform::Identity, Params);
+
+	if (ASkyLight* Sky = World->SpawnActor<ASkyLight>(ASkyLight::StaticClass(),
+		FTransform::Identity, Params))
+	{
+		if (USceneComponent* SkyRoot = Sky->GetRootComponent())
+		{
+			SkyRoot->SetMobility(EComponentMobility::Movable);
+		}
+		if (USkyLightComponent* SkyComp = Sky->GetLightComponent())
+		{
+			SkyComp->SetMobility(EComponentMobility::Movable);
+			SkyComp->SetRealTimeCaptureEnabled(true);
+			SkyComp->SetIntensity(1.0f);
+		}
+	}
+
+	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(
+		AExponentialHeightFog::StaticClass(),
+		FTransform(FRotator::ZeroRotator, FVector(0.0f, 0.0f, 0.0f)), Params))
+	{
+		if (UExponentialHeightFogComponent* FogComp = Fog->GetComponent())
+		{
+			FogComp->SetFogDensity(0.04f);
+			FogComp->SetFogHeightFalloff(0.05f);
+			FogComp->SetStartDistance(4000.0f);       // 40 m clear foreground
+			FogComp->SetFogInscatteringColor(
+				FLinearColor(0.58f, 0.66f, 0.80f, 1.0f));
+		}
+	}
+
+	UE_LOG(LogRunsim, Log,
+		TEXT("spawned runsim scene (terrain, runner, lights, sky, fog)"));
 }

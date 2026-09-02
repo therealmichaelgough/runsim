@@ -52,6 +52,25 @@ namespace
 		OutWeight = FMath::Clamp((X - Keys[OutA]) / Denom, 0.0f, 1.0f);
 	}
 
+	/** Wrap-around linear sample of a per-frame scalar channel at a phase. */
+	float SampleChannel(const TArray<float>& Channel, float Phase)
+	{
+		const int32 N = Channel.Num();
+		if (N == 0)
+		{
+			return 0.0f;
+		}
+		const float F = FMath::Frac(FMath::Max(0.0f, Phase)) * static_cast<float>(N);
+		const float Floor = FMath::FloorToFloat(F);
+		int32 i = static_cast<int32>(Floor) % N;
+		if (i < 0)
+		{
+			i += N;
+		}
+		const int32 j = (i + 1) % N;
+		return FMath::Lerp(Channel[i], Channel[j], F - Floor);
+	}
+
 	bool ReadNumberArray(const FJsonObject& Obj, const TCHAR* Field,
 		int32 Expected, TArray<double>& Out)
 	{
@@ -350,6 +369,71 @@ bool URunsimGaitData::ParseGaits(const TSharedPtr<FJsonObject>& Root)
 			continue;
 		}
 
+		// Optional per-frame channels (backend data contract, 2026-09-02):
+		// per-foot vertical GRF in bodyweights on every gait; Bhargava
+		// metabolic rate in W/kg on the 2D metabolic-objective gaits.
+		TArray<double> Channel;
+		if (ReadNumberArray(Obj, TEXT("grfBwL"), NumFrames, Channel))
+		{
+			G.GrfBwL.Reset(NumFrames);
+			for (double V : Channel)
+			{
+				G.GrfBwL.Add(static_cast<float>(V));
+			}
+		}
+		if (ReadNumberArray(Obj, TEXT("grfBwR"), NumFrames, Channel))
+		{
+			G.GrfBwR.Reset(NumFrames);
+			for (double V : Channel)
+			{
+				G.GrfBwR.Add(static_cast<float>(V));
+			}
+		}
+		G.bHasGrf = G.GrfBwL.Num() == NumFrames && G.GrfBwR.Num() == NumFrames;
+		if (ReadNumberArray(Obj, TEXT("metRateWkg"), NumFrames, Channel))
+		{
+			G.MetRateWkg.Reset(NumFrames);
+			for (double V : Channel)
+			{
+				G.MetRateWkg.Add(static_cast<float>(V));
+			}
+			G.bHasMet = true;
+		}
+
+		// Contact time and flight fraction derive from the same GRF arrays
+		// the HUD displays, so the numbers agree by construction.
+		if (G.bHasGrf)
+		{
+			constexpr float ContactThresholdBw = 0.05f;
+			int32 ContactL = 0, ContactR = 0, Airborne = 0;
+			for (int32 f = 0; f < NumFrames; ++f)
+			{
+				const bool bL = G.GrfBwL[f] > ContactThresholdBw;
+				const bool bR = G.GrfBwR[f] > ContactThresholdBw;
+				ContactL += bL ? 1 : 0;
+				ContactR += bR ? 1 : 0;
+				Airborne += (!bL && !bR) ? 1 : 0;
+			}
+			G.ContactTimeS = G.StrideTimeS
+				* (0.5f * (ContactL + ContactR)) / static_cast<float>(NumFrames);
+			G.FlightFrac = static_cast<float>(Airborne) / static_cast<float>(NumFrames);
+			G.bHasContact = true;
+		}
+
+		// Mean pelvis XY across the stride: playback subtracts it so gaits
+		// with baked lateral drift (the tracked 3D seed) stay on the path.
+		const int32 PelvisLocal = Bodies.IndexOfByKey(FName(TEXT("pelvis")));
+		if (PelvisLocal != INDEX_NONE)
+		{
+			FVector Mean = FVector::ZeroVector;
+			for (int32 f = 0; f < NumFrames; ++f)
+			{
+				Mean += G.Positions[f * G.NumBodies + PelvisLocal];
+			}
+			Mean /= static_cast<float>(NumFrames);
+			G.PlaybackCentre = FVector(Mean.X, Mean.Y, 0.0);
+		}
+
 		if (G.SourceKind.Equals(TEXT("3d"), ESearchCase::IgnoreCase))
 		{
 			bHasArmData = true;
@@ -448,6 +532,16 @@ float URunsimGaitData::GetMinSpeed() const
 float URunsimGaitData::GetMaxSpeed() const
 {
 	return SpeedKeys.Num() > 0 ? SpeedKeys.Last() : 0.0f;
+}
+
+float URunsimGaitData::GetMinGrade() const
+{
+	return GradeKeys.Num() > 0 ? GradeKeys[0] : 0.0f;
+}
+
+float URunsimGaitData::GetMaxGrade() const
+{
+	return GradeKeys.Num() > 0 ? GradeKeys.Last() : 0.0f;
 }
 
 void URunsimGaitData::SampleGait(int32 GaitIndex, float Phase,
@@ -643,6 +737,40 @@ bool URunsimGaitData::GetBlendedPose(float Speed, float Grade, float Phase,
 		? 1.0f - W * (B.Speed > 2.0f ? 1.0f : 0.0f)
 		: 0.0f;
 
+	// Live channels follow the same lerp2 rule as every other scalar, and
+	// are shown only when every contributing solution carries them.
+	Out.bHasGrf = A.bHasGrf && B.bHasGrf && GAG.bHasGrf && GBG.bHasGrf && Flat3.bHasGrf;
+	if (Out.bHasGrf)
+	{
+		auto TotalGrf = [Phase](const FRunsimGait& G)
+		{
+			return SampleChannel(G.GrfBwL, Phase) + SampleChannel(G.GrfBwR, Phase);
+		};
+		Out.GrfBw = FMath::Max(0.0f, Lerp2(TotalGrf(A), TotalGrf(B),
+			TotalGrf(GAG), TotalGrf(GBG), TotalGrf(Flat3)));
+	}
+
+	Out.bHasMet = A.bHasMet && B.bHasMet && GAG.bHasMet && GBG.bHasMet && Flat3.bHasMet;
+	if (Out.bHasMet)
+	{
+		auto Met = [Phase](const FRunsimGait& G)
+		{
+			return SampleChannel(G.MetRateWkg, Phase);
+		};
+		Out.MetRateWkg = FMath::Max(0.0f, Lerp2(Met(A), Met(B),
+			Met(GAG), Met(GBG), Met(Flat3)));
+	}
+
+	Out.bHasContact = A.bHasContact && B.bHasContact && GAG.bHasContact
+		&& GBG.bHasContact && Flat3.bHasContact;
+	if (Out.bHasContact)
+	{
+		Out.ContactTimeS = FMath::Max(0.0f, Lerp2(A.ContactTimeS, B.ContactTimeS,
+			GAG.ContactTimeS, GBG.ContactTimeS, Flat3.ContactTimeS));
+		Out.FlightFrac = FMath::Clamp(Lerp2(A.FlightFrac, B.FlightFrac,
+			GAG.FlightFrac, GBG.FlightFrac, Flat3.FlightFrac), 0.0f, 1.0f);
+	}
+
 	return true;
 }
 
@@ -665,7 +793,9 @@ bool URunsimGaitData::GetGaitPose(int32 GaitIndex, float Phase, FRunsimPose& Out
 	for (int32 b = 0; b < NumGlobalBodies; ++b)
 	{
 		Out.bBodyValid[b] = Val[b];
-		Out.BodyPosition[b] = Val[b] ? Pos[b] : FVector::ZeroVector;
+		// Recentre on the mean pelvis XY so solutions with baked lateral
+		// drift (the tracked 3D seed, ~35 cm) play back on the path.
+		Out.BodyPosition[b] = Val[b] ? Pos[b] - G.PlaybackCentre : FVector::ZeroVector;
 		Out.BodyRotation[b] = Val[b] ? Rot[b] : FQuat::Identity;
 	}
 	Out.StrideTimeS = FMath::Max(0.05f, G.StrideTimeS);
@@ -673,6 +803,15 @@ bool URunsimGaitData::GetGaitPose(int32 GaitIndex, float Phase, FRunsimPose& Out
 	Out.bHasCot = G.bHasCot;
 	Out.Cot = G.Cot;
 	Out.WalkWeight = 0.0f;
+	Out.bHasGrf = G.bHasGrf;
+	Out.GrfBw = G.bHasGrf
+		? FMath::Max(0.0f, SampleChannel(G.GrfBwL, Phase) + SampleChannel(G.GrfBwR, Phase))
+		: 0.0f;
+	Out.bHasMet = G.bHasMet;
+	Out.MetRateWkg = G.bHasMet ? SampleChannel(G.MetRateWkg, Phase) : 0.0f;
+	Out.bHasContact = G.bHasContact;
+	Out.ContactTimeS = G.ContactTimeS;
+	Out.FlightFrac = G.FlightFrac;
 	return true;
 }
 

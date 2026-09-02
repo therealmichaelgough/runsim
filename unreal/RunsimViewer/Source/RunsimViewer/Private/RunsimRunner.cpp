@@ -113,6 +113,11 @@ void ARunsimRunner::SetTargetSpeed(float MetresPerSecond)
 	}
 }
 
+void ARunsimRunner::SetSteerInput(float InSteer)
+{
+	SteerInput = FMath::Clamp(InSteer, -1.0f, 1.0f);
+}
+
 void ARunsimRunner::SetHilliness(float InHilliness)
 {
 	Hilliness = FMath::Clamp(InHilliness, 0.0f, 1.0f);
@@ -166,7 +171,7 @@ FString ARunsimRunner::GetPlaybackLabel() const
 
 FVector ARunsimRunner::GetGroundLocation() const
 {
-	return RunsimTerrain::GroundLocation(DistanceM, Hilliness);
+	return RunsimTerrain::GroundLocation(PosXM, PosYM, Hilliness);
 }
 
 void ARunsimRunner::Tick(float DeltaSeconds)
@@ -184,7 +189,18 @@ void ARunsimRunner::Tick(float DeltaSeconds)
 		const float Dt = FMath::Min(0.05f, DeltaSeconds);
 		SpeedMps += (TargetSpeedMps - SpeedMps) * FMath::Min(1.0f, Dt * SpeedFollowRate);
 
-		const float Grade = RunsimTerrain::GradeAt(DistanceM, Hilliness);
+		// Rate-limited steering: the input commands a yaw rate, followed
+		// smoothly, so the straight-line gait re-aims plausibly instead of
+		// snapping (an approximation; no curve-specific gaits exist).
+		const float TargetYawRate = SteerInput * MaxYawRateDegS;
+		YawRateDegS += (TargetYawRate - YawRateDegS)
+			* FMath::Min(1.0f, Dt * SteerFollowRate);
+		HeadingDeg = static_cast<float>(
+			FRotator::NormalizeAxis(HeadingDeg + YawRateDegS * Dt));
+
+		const float HeadingRad = FMath::DegreesToRadians(HeadingDeg);
+		const float Grade = RunsimTerrain::GradeAlong(
+			PosXM, PosYM, HeadingRad, Hilliness);
 		FRunsimPose Step;
 		const bool bPosed = (PlaybackIndex != INDEX_NONE)
 			? GaitData->GetGaitPose(PlaybackIndex, Phase, Step)
@@ -195,23 +211,38 @@ void ARunsimRunner::Tick(float DeltaSeconds)
 			// projected onto the slope, not at the requested speed.
 			const float EffectiveSpeed = Step.StrideLenM / Step.StrideTimeS;
 			Phase = FMath::Frac(Phase + Dt / Step.StrideTimeS);
-			DistanceM += EffectiveSpeed * FMath::Cos(FMath::Atan(Grade)) * Dt;
+			const float HorizM = EffectiveSpeed
+				* FMath::Cos(FMath::Atan(Grade)) * Dt;
+			PosXM += FMath::Cos(HeadingRad) * HorizM;
+			PosYM += FMath::Sin(HeadingRad) * HorizM;
+			DistanceM += EffectiveSpeed * Dt;
 		}
 	}
 
-	CurrentGrade = RunsimTerrain::GradeAt(DistanceM, Hilliness);
-	if (!GaitData->GetBlendedPose(SpeedMps, CurrentGrade, Phase, CachedPose))
+	const float HeadingRad = FMath::DegreesToRadians(HeadingDeg);
+	CurrentGrade = RunsimTerrain::GradeAlong(PosXM, PosYM, HeadingRad, Hilliness);
+	// The blend clamps itself to the solved grade range internally; the flag
+	// only tells the HUD that clamping is happening.
+	bGaitGradeClamped = CurrentGrade < GaitData->GetMinGrade() - 1.0e-4f
+		|| CurrentGrade > GaitData->GetMaxGrade() + 1.0e-4f;
+
+	const bool bHavePose = (PlaybackIndex != INDEX_NONE)
+		? GaitData->GetGaitPose(PlaybackIndex, Phase, CachedPose)
+		: GaitData->GetBlendedPose(SpeedMps, CurrentGrade, Phase, CachedPose);
+	if (!bHavePose)
 	{
 		return;
 	}
 
-	// Whole-runner placement: sit on the terrain, pitched by the local slope.
-	// The simulation's ground plane (z = 0 in the baked pose) is then tangent
-	// to the terrain at the runner's foot point.
-	const FTransform RunnerTransform(
-		FRotator(RunsimTerrain::PitchDegrees(DistanceM, Hilliness), 0.0f, 0.0f),
-		RunsimTerrain::GroundLocation(DistanceM, Hilliness));
-	SetActorTransform(RunnerTransform);
+	// Whole-runner placement: sit on the terrain, yawed to the heading and
+	// tilted to the local tangent plane (pitch along the heading, bank
+	// across it), so the baked pose's ground plane (z = 0) stays tangent to
+	// the terrain at the runner's foot point.
+	const FVector Normal = RunsimTerrain::NormalAt(PosXM, PosYM, Hilliness);
+	const FVector Forward(FMath::Cos(HeadingRad), FMath::Sin(HeadingRad), 0.0f);
+	const FMatrix Basis = FRotationMatrix::MakeFromZX(Normal, Forward);
+	SetActorTransform(FTransform(Basis.ToQuat(),
+		RunsimTerrain::GroundLocation(PosXM, PosYM, Hilliness)));
 
 	PoseSegments();
 }

@@ -54,6 +54,7 @@ protected:
 	void ResolveWorldActors();
 
 	void InputSpeed(float Value);
+	void InputSteer(float Value);
 	void InputHills(float Value);
 	void InputTurn(float Value);
 	void InputLookUp(float Value);
@@ -81,6 +82,7 @@ protected:
 	TObjectPtr<ARunsimTerrain> Terrain;
 
 	float TargetSpeedMps = 3.0f;
+	float SteerValue = 0.0f;
 	float Hilliness = 0.45f;
 	bool bPaused = false;
 	bool bOrbiting = false;

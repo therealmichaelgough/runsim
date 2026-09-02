@@ -44,6 +44,22 @@ struct FRunsimGait
 	/** NumFrames * NumBodies, frame-major. Centimetres, simulation frame. */
 	TArray<FVector> Positions;
 	TArray<FQuat> Rotations;
+
+	/** Per-frame vertical GRF per foot, bodyweights (NumFrames each). */
+	bool bHasGrf = false;
+	TArray<float> GrfBwL;
+	TArray<float> GrfBwR;
+	/** Per-frame whole-body metabolic rate, W/kg (metabolic-objective gaits). */
+	bool bHasMet = false;
+	TArray<float> MetRateWkg;
+	/** Derived from the GRF arrays at load (contact = vGRF > 0.05 BW). */
+	bool bHasContact = false;
+	float ContactTimeS = 0.0f;   // single-foot stance duration
+	float FlightFrac = 0.0f;     // fraction of the stride fully airborne
+
+	/** Mean pelvis XY offset across the stride (cm) -- subtracted in
+	 *  playback so solutions with lateral drift stay centred on the path. */
+	FVector PlaybackCentre = FVector::ZeroVector;
 };
 
 /** Result of blending gaits at one (speed, grade, phase). */
@@ -59,6 +75,15 @@ struct FRunsimPose
 	float WalkWeight = 0.0f;
 	bool bHasCot = false;
 	float Cot = 0.0f;
+
+	/** Live channels at the sampled phase; check the bHas* flags first. */
+	bool bHasGrf = false;
+	float GrfBw = 0.0f;          // total vertical GRF, bodyweights
+	bool bHasMet = false;
+	float MetRateWkg = 0.0f;     // whole-body metabolic rate, W/kg
+	bool bHasContact = false;
+	float ContactTimeS = 0.0f;   // single-foot stance duration, s
+	float FlightFrac = 0.0f;     // fraction of the stride fully airborne
 };
 
 /**
@@ -93,6 +118,10 @@ public:
 
 	float GetMinSpeed() const;
 	float GetMaxSpeed() const;
+
+	/** Solved grade range of the blend (the pose clamps outside it). */
+	float GetMinGrade() const;
+	float GetMaxGrade() const;
 
 	/** True if any loaded gait carries the arm bodies (3D-sourced). */
 	bool HasArmData() const { return bHasArmData; }

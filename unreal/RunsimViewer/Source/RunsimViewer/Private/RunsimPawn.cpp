@@ -86,6 +86,7 @@ void ARunsimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	}
 
 	PlayerInputComponent->BindAxis(TEXT("RunsimSpeed"), this, &ARunsimPawn::InputSpeed);
+	PlayerInputComponent->BindAxis(TEXT("RunsimSteer"), this, &ARunsimPawn::InputSteer);
 	PlayerInputComponent->BindAxis(TEXT("RunsimHills"), this, &ARunsimPawn::InputHills);
 	PlayerInputComponent->BindAxis(TEXT("RunsimTurn"), this, &ARunsimPawn::InputTurn);
 	PlayerInputComponent->BindAxis(TEXT("RunsimLookUp"), this, &ARunsimPawn::InputLookUp);
@@ -129,6 +130,12 @@ void ARunsimPawn::InputSpeed(float Value)
 	}
 	const float Dt = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.0f;
 	TargetSpeedMps += Value * SpeedChangeRate * Dt;
+}
+
+void ARunsimPawn::InputSteer(float Value)
+{
+	// Axis callbacks fire every frame with the live value; just latch it.
+	SteerValue = FMath::Clamp(Value, -1.0f, 1.0f);
 }
 
 void ARunsimPawn::InputHills(float Value)
@@ -203,23 +210,31 @@ void ARunsimPawn::Tick(float DeltaSeconds)
 				Runner->GetGaitData()->GetMaxSpeed());
 		}
 		Runner->SetTargetSpeed(TargetSpeedMps);
+		Runner->SetSteerInput(SteerValue);
 		Runner->SetHilliness(Hilliness);
 		Runner->SetPaused(bPaused);
 	}
 	if (Terrain)
 	{
 		Terrain->SetHilliness(Hilliness);
-		Terrain->UpdateAround(Runner ? Runner->GetDistanceM() : 0.0f);
+		const FVector2D Centre = Runner ? Runner->GetPositionM() : FVector2D::ZeroVector;
+		Terrain->UpdateAround(Centre.X, Centre.Y);
 	}
 
-	// Follow the runner with a velocity-scaled look-ahead; the spring arm's
-	// lag does the smoothing, so the focus point itself can snap.
+	// Follow the runner with a velocity-scaled look-ahead along its heading;
+	// the spring arm's lag does the smoothing, so the focus point can snap.
+	float HeadingDeg = 0.0f;
 	if (Runner)
 	{
+		HeadingDeg = Runner->GetHeadingDeg();
+		const float HeadingRad = FMath::DegreesToRadians(HeadingDeg);
 		const float LookAheadM =
 			Runner->GetSpeedMps() * LookAheadPerMps / RunsimTerrain::UnitsPerMetre;
-		const float FocusM = Runner->GetDistanceM() + LookAheadM;
-		FVector Focus = RunsimTerrain::GroundLocation(FocusM, Hilliness);
+		const FVector2D Pos = Runner->GetPositionM();
+		FVector Focus = RunsimTerrain::GroundLocation(
+			Pos.X + FMath::Cos(HeadingRad) * LookAheadM,
+			Pos.Y + FMath::Sin(HeadingRad) * LookAheadM,
+			Hilliness);
 		Focus.Z += EyeHeightCm;
 		SetActorLocation(Focus);
 	}
@@ -227,6 +242,9 @@ void ARunsimPawn::Tick(float DeltaSeconds)
 	if (SpringArm)
 	{
 		SpringArm->TargetArmLength = ArmLength;
-		SpringArm->SetRelativeRotation(FRotator(OrbitPitch, OrbitYaw, 0.0f));
+		// The orbit is heading-relative: the camera chases the runner
+		// through turns, and the rotation lag rounds the corners off.
+		SpringArm->SetRelativeRotation(
+			FRotator(OrbitPitch, HeadingDeg + OrbitYaw, 0.0f));
 	}
 }

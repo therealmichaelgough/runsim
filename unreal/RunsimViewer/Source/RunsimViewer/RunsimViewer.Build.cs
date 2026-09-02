@@ -14,7 +14,9 @@ public class RunsimViewer : ModuleRules
 			"InputCore",
 			// gaits_ue.json is parsed with FJsonSerializer at startup.
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			// the terrain heightfield chunks (engine plugin, enabled by default)
+			"ProceduralMeshComponent"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
