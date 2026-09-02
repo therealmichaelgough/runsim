@@ -72,8 +72,8 @@ read it before starting, log long-running jobs and findings there.
   Known bias: peak vGRF 3.1 BW (~30% high — contact-sphere impact
   artifact, as in 2D). Hard-won formulation rules in CLAUDE.md (ground
   the tracking reference INTO the floor; homotope speed from the guess's
-  effective value; watch IPOPT restoration). Next: metabolic objective in
-  3D, Hamner arm-swing angular-momentum validation, speed/grade chains.
+  effective value; watch IPOPT restoration). **Arm-swing angular-momentum validation done** (`scripts/analyze_arm_momentum.py`): the measured reference reproduces Hamner & Delp 2013 (arms cancel ~76% of the legs' vertical angular momentum, corr -0.99); the tracked seed preserves the mechanism (45% cancellation); the pure-effort predictive gait LOSES it (arm amplitude 0.21x measured, correlation flips positive) - minimum effort alone does not produce human arm swing (`experiments/phase3_arm_momentum.png`). Next: metabolic objective in
+  3D (running - does it restore arm swing?), speed/grade chains.
 
 ## Architecture (planned)
 
