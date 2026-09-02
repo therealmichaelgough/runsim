@@ -711,3 +711,24 @@ converged 3D solve lands.
 - **No Moco solves will be started here.** Metabolic solve PID 32292
   verified ALIVE and untouched. Not touching unreal/ or
   scripts/export_ue_gaits.py (viewer agent owns those).
+
+## 2026-09-02T19:48Z — Fable UI agent (viewer overhaul) — Windows workstation
+
+- **CLAIMING: RunsimViewer major upgrade** (UI agent, four objectives):
+  1) replace the 1D spline ribbon with a >=1 km^2 procedural heightfield
+     (analytic FBM value-noise in RunsimTerrainMath.h, chunked
+     UProceduralMeshComponent, minimalist banded palette + fog);
+  2) user heading control (A/D steer, rate-limited yaw, grade = directional
+     derivative along heading);
+  3) HUD overhaul (pace/cadence/stride/contact-time/flight/COT+W/kg/GRF
+     panels — GRF pending a data-contract request to the backend session);
+  4) diagnose + fix the VERIFIED arm misplacement in blended-2D mode, with
+     a failing-then-passing numeric invariant test in tests/test_ue_export.py.
+- Touches: unreal/RunsimViewer/Source + Config, scripts/export_ue_gaits.py
+  (small additions only: per-gait contact time/flight fraction),
+  tests/test_ue_export.py, unreal/README.md.
+- **CPU discipline:** metabolic solve PID 32292 verified ALIVE and will not
+  be touched; all UE builds run at BelowNormal; no game/editor process is
+  currently running (verified). Will close any running RunsimViewer before
+  each build and relaunch after.
+- Commits go to windows-main incrementally, pushed after each.
