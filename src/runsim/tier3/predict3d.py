@@ -36,6 +36,37 @@ class GaitPrediction3D:
     success: bool
     objective: float
     solve_time_s: float
+    cost_of_transport: float | None = None
+
+
+def _attach_metabolics(model: osim.Model) -> None:
+    """Smoothed Bhargava (2004) metabolics over every muscle (Falisse
+    2019 / example2DWalkingMetabolics), as in predict2d."""
+    metabolics = osim.Bhargava2004SmoothedMuscleMetabolics()
+    metabolics.setName("metabolic_cost")
+    metabolics.set_use_smoothing(True)
+    for comp in model.getComponentsList():
+        muscle = osim.Muscle.safeDownCast(comp)
+        if muscle is not None:
+            metabolics.addMuscle(muscle.getName(), muscle)
+    model.addComponent(metabolics)
+
+
+def _cost_of_transport(model: osim.Model, solution: osim.MocoTrajectory) -> float:
+    """Whole-body metabolic energy per kg per metre (J/kg/m)."""
+    state = model.initSystem()
+    paths = osim.StdVectorString()
+    # analyzeMocoTrajectory entries are regex patterns (CLAUDE.md gotcha)
+    paths.append(".*metabolic_cost.*total_metabolic_rate")
+    table = osim.analyzeMocoTrajectory(model, solution, paths)
+    labels = list(table.getColumnLabels())
+    if not labels:
+        raise RuntimeError("metabolic output not found")
+    t = np.asarray(table.getIndependentColumn())
+    rate = table.getDependentColumn(labels[0]).to_numpy()
+    energy = float(np.trapezoid(rate, t))
+    tx = solution.getState("/jointset/ground_pelvis/pelvis_tx/value").to_numpy()
+    return energy / (model.getTotalMass(state) * float(tx[-1] - tx[0]))
 
 
 def _add_periodicity(problem: osim.MocoProblem, model: osim.Model) -> None:
@@ -95,14 +126,21 @@ def predict_gait_3d(
     mesh_intervals: int = 50,
     max_iterations: int = 3000,
     label: str | None = None,
+    objective: str = "effort",
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
-    solution and GRFs into out_dir."""
+    solution and GRFs into out_dir.
+
+    objective: "effort" (cubed controls / distance) or "metabolic"
+    (Bhargava cost of transport + small quadratic effort regularizer)."""
+    if objective not in ("effort", "metabolic"):
+        raise ValueError("objective must be 'effort' or 'metabolic'")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     label = label or (
         "p3d_" + f"v{speed_ms:g}_g{grade:+g}".replace("+", "p")
         .replace("-", "m").replace(".", "_")
+        + ("_met" if objective == "metabolic" else "")
     )
 
     study = osim.MocoStudy()
@@ -112,6 +150,8 @@ def predict_gait_3d(
     model = build_running_model(model_path)
     theta = math.atan(grade)
     model.set_gravity(osim.Vec3(-9.81 * math.sin(theta), -9.81 * math.cos(theta), 0))
+    if objective == "metabolic":
+        _attach_metabolics(model)
     model.finalizeConnections()
     problem.setModelProcessor(osim.ModelProcessor(model))
 
@@ -123,10 +163,21 @@ def predict_gait_3d(
     speed_goal.set_desired_average_speed(speed_ms)
     problem.addGoal(speed_goal)
 
-    effort = osim.MocoControlGoal("effort", 10)
-    effort.setExponent(3)
-    effort.setDivideByDisplacement(True)
-    problem.addGoal(effort)
+    if objective == "metabolic":
+        met = osim.MocoOutputGoal("met", 1.0)
+        met.setOutputPath("/metabolic_cost|total_metabolic_rate")
+        met.setDivideByDisplacement(True)
+        met.setDivideByMass(True)
+        problem.addGoal(met)
+        effort = osim.MocoControlGoal("effort", 0.1)
+        effort.setExponent(2)
+        effort.setDivideByDisplacement(True)
+        problem.addGoal(effort)
+    else:
+        effort = osim.MocoControlGoal("effort", 10)
+        effort.setExponent(3)
+        effort.setDivideByDisplacement(True)
+        problem.addGoal(effort)
 
     # full-cycle duration bracket around the seed's 0.715 s
     problem.setTimeBounds(0, [0.4, 1.0])
@@ -163,8 +214,16 @@ def predict_gait_3d(
     grf_path = out_dir / f"grf_{label}.sto"
     osim.STOFileAdapter.write(grf, str(grf_path))
 
+    cot = None
+    if objective == "metabolic":
+        try:
+            cot = _cost_of_transport(model, solution)
+        except Exception as exc:  # never let post-processing waste a solve
+            print(f"[warn] cost-of-transport extraction failed: {exc}")
+
     return GaitPrediction3D(
         speed_ms=speed_ms, grade=grade, solution_path=sol_path,
         grf_path=grf_path, success=success,
         objective=solution.getObjective(), solve_time_s=solve_time,
+        cost_of_transport=cot,
     )
