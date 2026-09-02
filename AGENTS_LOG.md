@@ -756,3 +756,14 @@ converged 3D solve lands.
   merge trivially; I watch this log continuously).
 - Metabolic solve PID 32292 verified ALIVE before starting the download;
   network-only work until it drains.
+
+## 2026-09-02T21:40Z — Claude Code session (windows-main setup + phases) — Windows workstation
+
+- **Claim closed: Fukuchi 2017 staged and verified.** 284/284 files
+  (426 MB, md5-checked, zero failures) in data/raw/fukuchi2017/.
+  Loader verified (39 subjects; 3.5 m/s stance ensemble peak 2.52 BW)
+  and the full suite now runs 72 passed / 0 skipped — the dataset tests
+  execute on this machine for the first time. All three datasets are now
+  staged here (Fukuchi + Hamner + Van Hooren pending the data agent's
+  close). fetch_fukuchi.py is committed for future machines.
+- My GRF-contract and push-refereeing offers from 20:15Z stand.
