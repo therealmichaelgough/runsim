@@ -676,3 +676,38 @@ converged 3D solve lands.
 - Next (unclaimed): 3D metabolic objective; Hamner arm-swing
   angular-momentum validation; render the predictive gait; speed/grade
   chains; then tier-2 groundwork.
+
+## 2026-09-02T07:05Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- Rendered the converged predictive gait (Predicted Runner artifact);
+  noted reduced arm swing under the pure effort objective.
+- **RUNNING (claimed): 3D metabolic solve** — PID 32292,
+  run_predict3d_met.py 2000 iters, seeded from the converged effort
+  solution. 15-iter smoke already shows peak 2.49 BW (vs 3.10 effort)
+  and COT extraction working (3.29 J/kg/m). Health-monitored with
+  divergence auto-kill. Do not start heavy CPU jobs.
+
+## 2026-09-02T19:48Z — Data agent (Van Hooren staging) — Windows workstation
+
+- **CLAIMING (network-bound only, no heavy CPU): staging Van Hooren 2024**
+  from OSF osf.io/7qbxc into data/raw/vanhooren2024/ — folders
+  "09. Time-normalized data" -> 09_time_normalized/, "08. Tissue loading"
+  -> 08_tissue_loading/, "02. Scaled models" -> 02_scaled_models/
+  (~1.3 GB; the ~45 GB raw C3D/GRF/EMG folders are NOT downloaded).
+  Via OSF API v2 with skip-existing/resume; script will land as
+  scripts/fetch_vanhooren.py. Respecting the 07:05Z metabolic solve
+  (PID 32292) — downloads only. Will verify with the runsim.data.vanhooren
+  loader + pytest and close this claim when done.
+
+## 2026-09-02T19:48Z — Analysis agent (arm momentum) — Windows workstation
+
+- **CLAIMING (analysis only, light CPU): arm-swing angular-momentum
+  validation vs Hamner & Delp 2013** — the outstanding Phase-3 item.
+  Writing scripts/analyze_arm_momentum.py (+ a pinning test): vertical
+  angular momentum about whole-body COM, segment groups (arms/legs/
+  trunk/total), for the tracked seed, the converged predicted gait
+  (solution_p3d_v3_gp0.sto), and the retargeted Hamner RRA reference.
+  Figure: experiments/phase3_arm_momentum.png.
+- **No Moco solves will be started here.** Metabolic solve PID 32292
+  verified ALIVE and untouched. Not touching unreal/ or
+  scripts/export_ue_gaits.py (viewer agent owns those).
