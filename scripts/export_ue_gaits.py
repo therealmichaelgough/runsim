@@ -382,6 +382,36 @@ def align_phase(g3d: dict, bodies_3d: list[str],
     return int(np.argmax(scores))
 
 
+GRF_MODEL_3D = ROOT / "experiments" / "phase3_3drunning" / "lai_running_model.osim"
+
+
+def _resample48(t: np.ndarray, y: np.ndarray, ndp: int = 4) -> list[float]:
+    """Resample onto the same 48-phase grid bake_gait uses (endpoint=False)."""
+    phases = np.linspace(t[0], t[-1], NFRAMES, endpoint=False)
+    return [round(float(np.interp(tk, t, y)), ndp) for tk in phases]
+
+
+def grf_bw_from_table(table, mass_kg: float) -> tuple[list[float], list[float]]:
+    """Per-foot vertical GRF in bodyweights on the 48-phase grid."""
+    t = np.asarray(table.getIndependentColumn())
+    bw = mass_kg * 9.81
+    left = _resample48(t, table.getDependentColumn("ground_force_l_vy").to_numpy() / bw)
+    right = _resample48(t, table.getDependentColumn("ground_force_r_vy").to_numpy() / bw)
+    return left, right
+
+
+def met_rate_wkg(model_met, sol_path: Path, mass_kg: float) -> list[float]:
+    """Whole-body Bhargava metabolic rate (W/kg) on the 48-phase grid.
+    analyzeMocoTrajectory entries are regex patterns (CLAUDE.md gotcha)."""
+    traj = osim.MocoTrajectory(str(sol_path))
+    paths = osim.StdVectorString()
+    paths.append(".*metabolic_cost.*total_metabolic_rate")
+    table = osim.analyzeMocoTrajectory(model_met, traj, paths)
+    t = np.asarray(table.getIndependentColumn())
+    rate = table.getDependentColumn(list(table.getColumnLabels())[0]).to_numpy()
+    return _resample48(t, rate / mass_kg, ndp=2)
+
+
 def bake_gait(model, state, bodies: list[str], path: Path) -> dict:
     """Pose the model at NFRAMES phases and record per-body UE transforms."""
     t, data = coordinate_values(path)
@@ -437,6 +467,8 @@ def main() -> None:
               f"r={s['radiusCm']:5.2f}cm")
 
     gaits = []
+    mass_2d = m2d.getTotalMass(s2d)
+    m2d_met = None  # lazy: metabolics-instrumented copy for _met gaits
     bodies_2d = [b for b in dict.fromkeys(s["body"] for s in segments)
                  if b in body_names(m2d)]
     for fname, speed, grade, cot in GAITS:
@@ -447,12 +479,31 @@ def main() -> None:
         g = bake_gait(m2d, s2d, bodies_2d, path)
         g.update(speed=speed, grade=round(grade, 5), cot=cot, src=fname,
                  source="2d", bodies=bodies_2d)
+        # per-frame vertical GRF (BW) from the solution's sibling grf table
+        grf_path = RUN2D / fname.replace("fullstride_", "grf_")
+        if grf_path.exists():
+            table = osim.TimeSeriesTable(str(grf_path))
+            g["grfBwL"], g["grfBwR"] = grf_bw_from_table(table, mass_2d)
+        # per-frame Bhargava rate (W/kg) for metabolic-objective solutions
+        if "_met" in fname:
+            if m2d_met is None:
+                from runsim.tier3.predict2d import _attach_metabolics
+                m2d_met = osim.Model(str(MODEL_2D))
+                _attach_metabolics(m2d_met)
+                m2d_met.finalizeConnections()
+                m2d_met.initSystem()
+            try:
+                g["metRateWkg"] = met_rate_wkg(m2d_met, path, mass_2d)
+            except Exception as exc:
+                print(f"  [warn] metabolic rate failed for {fname}: {exc}")
         gaits.append(g)
         print(f"{fname}: strideTime={g['strideTime']}s "
               f"strideLen={g['strideLen']}m "
               f"cadence={2 / g['strideTime']:.2f}Hz")
 
     if GAITS_3D:  # extension point - see the module docstring
+        grf_model_3d = None  # lazy: contact-instrumented model for 3d GRFs
+        grf_r3 = grf_l3 = None
         m3d = next(m for tag, m, _ in models if tag == "3d")
         s3d = next(s for tag, _, s in models if tag == "3d")
         bodies_3d = [b for b in dict.fromkeys(s["body"] for s in segments)
@@ -472,6 +523,29 @@ def main() -> None:
                                      if x["speed"] == 3.0 and x["grade"] == 0),
                                 bodies_2d)
             g["frames"] = g["frames"][shift:] + g["frames"][:shift]
+            # contact GRFs computed from the running model's spheres, rolled
+            # by the SAME shift so forces stay aligned with the frames
+            try:
+                if grf_model_3d is None:
+                    from runsim.tier3.model3d import (CONTACT_FORCES_LEFT,
+                                                      CONTACT_FORCES_RIGHT)
+                    grf_model_3d = osim.Model(str(GRF_MODEL_3D))
+                    grf_model_3d.initSystem()
+                    grf_r3 = osim.StdVectorString()
+                    grf_l3 = osim.StdVectorString()
+                    for c in CONTACT_FORCES_RIGHT:
+                        grf_r3.append(c)
+                    for c in CONTACT_FORCES_LEFT:
+                        grf_l3.append(c)
+                traj = osim.MocoTrajectory(str(path))
+                table = osim.createExternalLoadsTableForGait(
+                    grf_model_3d, traj, grf_r3, grf_l3)
+                mass_3d = grf_model_3d.getTotalMass(grf_model_3d.initSystem())
+                L, R = grf_bw_from_table(table, mass_3d)
+                g["grfBwL"] = [round(v, 4) for v in np.roll(L, -shift)]
+                g["grfBwR"] = [round(v, 4) for v in np.roll(R, -shift)]
+            except Exception as exc:
+                print(f"  [warn] 3d GRF failed for {path.name}: {exc}")
             print(f"{path.name}: 3d arm source, phase-rolled {shift} frames")
             gaits.append(g)
 

@@ -330,6 +330,28 @@ def test_arm_segments_present_and_sourced_from_3d_gaits(data):
             assert arm_bodies <= set(g["bodies"])
 
 
+def test_per_frame_grf_and_met_contract(data):
+    """UI-agent data contract: per-foot vertical GRF (BW) on every gait,
+    Bhargava rate (W/kg) exactly on the 2D metabolic-objective gaits."""
+    for g in data["gaits"]:
+        assert len(g["grfBwL"]) == data["nframes"], g["src"]
+        assert len(g["grfBwR"]) == data["nframes"], g["src"]
+        peak = max(a + b for a, b in zip(g["grfBwL"], g["grfBwR"]))
+        lo = 1.0 if g["speed"] <= 2.0 else 1.5
+        # downhill gaits carry the documented impact artifact (up to ~6.5 BW)
+        hi = 7.0 if g["grade"] < 0 else 5.5
+        assert lo < peak < hi, (g["src"], peak)
+
+        expect_met = g["source"] == "2d" and "_met" in g["src"]
+        assert ("metRateWkg" in g) == expect_met, g["src"]
+        if expect_met:
+            rates = g["metRateWkg"]
+            assert len(rates) == data["nframes"]
+            mean = sum(rates) / len(rates)
+            # COT ~3.3-6.3 J/kg/m at 2.5-5 m/s -> mean rate roughly 8-35 W/kg
+            assert 5.0 < mean < 45.0, (g["src"], mean)
+
+
 def test_stride_data_matches_web_viewer_cadence(data):
     """M2 acceptance: the 2D-sourced 3.0 m/s gait runs at ~3.8 Hz."""
     g = next(g for g in data["gaits"] if g["speed"] == 3.0 and g["grade"] == 0.0)
