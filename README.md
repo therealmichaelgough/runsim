@@ -59,8 +59,21 @@ read it before starting, log long-running jobs and findings there.
   (t_c 250–252 ms vs 244; peak 2.39–2.43 BW vs 2.31) at a 12–15% COT
   penalty. Interpretation: the 2D model misprices low cadence (missing
   leg-swing/internal-work cost), not stance mechanics
-  (`experiments/phase3_cadence_analysis.png`). Next: the 3D LaiUhlrich
-  model (seed pipeline in `experiments/phase3_3drunning/`).
+  (`experiments/phase3_cadence_analysis.png`).
+- **Phase 3 finale (3D) — first milestone done.** `runsim.tier3.predict3d`
+  on the subject01-scaled LaiUhlrich model (80 muscles, 4-sphere feet):
+  full-cycle periodicity + average speed + cubed effort, seeded from a
+  validated Hamner tracking solve (`make_seed_3d.py`, obj 5.78, joints
+  3–10° RMS, GRFs at measured values) and speed-homotopied 1.7→3.0 m/s
+  (`run_predict3d.py`). The 3.0 m/s solve **converges** (obj 2.15):
+  emergent aerial running at **3.32 Hz** cadence and **263 ms** contact —
+  between the 2D model (~3.8–4.1 Hz) and human (2.8 Hz, ~245 ms), i.e.
+  the 3D model recovers much of the cadence realism the 2D model lacks.
+  Known bias: peak vGRF 3.1 BW (~30% high — contact-sphere impact
+  artifact, as in 2D). Hard-won formulation rules in CLAUDE.md (ground
+  the tracking reference INTO the floor; homotope speed from the guess's
+  effective value; watch IPOPT restoration). Next: metabolic objective in
+  3D, Hamner arm-swing angular-momentum validation, speed/grade chains.
 
 ## Architecture (planned)
 

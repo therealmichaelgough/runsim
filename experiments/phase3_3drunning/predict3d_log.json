@@ -1,0 +1,71 @@
+[
+  {
+    "stride_time_s": 0.9132311293357561,
+    "step_freq_hz": 2.1900260906072173,
+    "contact_time_s": 0.29838244819881143,
+    "flight_fraction": 0.33663366336633666,
+    "aerial": true,
+    "peak_force_bw": 3.791579897095438,
+    "speed": 3.0,
+    "grade": 0.0,
+    "success": false,
+    "objective": 83.91904323925363,
+    "solve_min": 9.26
+  },
+  {
+    "stride_time_s": 0.8709172848634418,
+    "step_freq_hz": 2.296429333485552,
+    "contact_time_s": 0.4052783404810076,
+    "flight_fraction": 0.09900990099009901,
+    "aerial": true,
+    "peak_force_bw": 3.763907313879057,
+    "speed": 1.7,
+    "grade": 0.0,
+    "success": false,
+    "objective": 0.750867779608269,
+    "solution": "solution_p3d_v1_7_gp0.sto",
+    "solve_min": 707.61
+  },
+  {
+    "stride_time_s": 0.7461260869775489,
+    "step_freq_hz": 2.680512094278484,
+    "contact_time_s": 0.33981980198977474,
+    "flight_fraction": 0.1188118811881188,
+    "aerial": true,
+    "peak_force_bw": 3.5731074069597413,
+    "speed": 2.2,
+    "grade": 0.0,
+    "success": true,
+    "objective": 1.1471589847576316,
+    "solution": "solution_p3d_v2_2_gp0.sto",
+    "solve_min": 111.96
+  },
+  {
+    "stride_time_s": 0.6435659104614581,
+    "step_freq_hz": 3.107684803512874,
+    "contact_time_s": 0.2931092265468027,
+    "flight_fraction": 0.12871287128712872,
+    "aerial": true,
+    "peak_force_bw": 3.123903444119225,
+    "speed": 2.6,
+    "grade": 0.0,
+    "success": false,
+    "objective": 1.5954980823238174,
+    "solution": "solution_p3d_v2_6_gp0.sto",
+    "solve_min": 792.92
+  },
+  {
+    "stride_time_s": 0.6026141815187637,
+    "step_freq_hz": 3.318873105441057,
+    "contact_time_s": 0.2625249899685703,
+    "flight_fraction": 0.15841584158415842,
+    "aerial": true,
+    "peak_force_bw": 3.0987904933489077,
+    "speed": 3.0,
+    "grade": 0.0,
+    "success": true,
+    "objective": 2.152734932478443,
+    "solution": "solution_p3d_v3_gp0.sto",
+    "solve_min": 682.21
+  }
+]

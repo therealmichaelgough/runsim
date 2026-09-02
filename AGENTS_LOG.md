@@ -621,3 +621,58 @@ zoom, `R` reset view.
 written with `success=False, objective=519.201` — unconverged, so `GAITS_3D` in
 `scripts/export_ue_gaits.py` should stay empty and the arms stay hidden until a
 converged 3D solve lands.
+
+## 2026-08-30T14:35Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Attempt 4 result: BREAKTHROUGH on contact** — the penetrating
+  reference (clearance 0.013) put the runner on the ground: contact
+  term 42.6 (every flight solution had ~930), t_c 212 ms / peak 2.29 BW
+  / 2.80 Hz vs measured ~240 ms / ~2.3 BW / 2.80 Hz. Remaining defect:
+  upper-body tracking poor (arm_flex 71 deg RMS, pelvis_rotation 58) and
+  iteration-capped with objective still descending. Archived as
+  seed3d_attempt4.sto (commit 6da50ed).
+- **RUNNING (claimed): attempt 5 = warm-start continuation** —
+  PID 24792, make_seed_3d.py 3000 iters, guess = seed3d_attempt4.sto.
+  Same logs. Do not start heavy CPU jobs.
+
+## 2026-08-31T04:25Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claims closed: 3D seed milestone + arm-swing rollout.** Attempt-5
+  warm-start continuation VALIDATED (obj 5.78; joints 3-10 deg RMS;
+  GRFs at measured values; commit 1de5f6e). Renders published (grounded
+  seed page + updated Runsim Track). Arm swing shipped to BOTH viewers:
+  UE (286914c: GAITS_3D populated, phase-rolled 47 frames, C++ arm
+  overlay excludes 3D gaits from blends and grafts arm bodies; verified
+  in-game "15 gaits ... arms present") and web (5ae8863: same alignment
+  independently reproduced shift=47). All 19+ tests pass.
+- Known follow-ups: treadmill-frame footnote (tracked solution advances
+  ~1.7 m/s over stationary ground with partial foot slip — irrelevant to
+  seeding, worth handling in the predictive formulation); UE terrain
+  material needs an in-editor bUsedWithSplineMeshes tick.
+- **NEXT: 3D predictive formulation** (periodicity + speed + metabolic
+  objective on the scaled model, seeded from seed3d_tracking.sto).
+  No heavy jobs currently running.
+
+## 2026-08-31T06:10Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **RUNNING (claimed): first 3D PREDICTIVE solve** (Phase-3 finale,
+  milestone 1) — PID 6944, run_predict3d.py 2000 iters: full-cycle
+  periodicity + average-speed 3.0 + cubed effort on the subject-scaled
+  model, seeded from seed3d_tracking.sto. ~22 s/iter, overnight-scale;
+  logs predict3d_full.log / predict3d_log.json. Formulation committed
+  (4f1a2e0), construction verified by a 25-iter capped run (aerial gait,
+  GRFs extracted). Do not start heavy CPU jobs. Warm-start continuation
+  is the plan if the cap hits with a sane objective.
+
+## 2026-09-02T05:30Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claim closed: PHASE-3 FINALE MILESTONE 1 — 3D predictive running
+  CONVERGED.** Chain 1.7 (708m, capped-sane 0.75) -> 2.2 (conv, 112m,
+  1.15) -> 2.6 (793m, capped-sane 1.60) -> 3.0 (CONVERGED, 682m, 2.15).
+  Emergent 3.0 m/s gait: 3.32 Hz, t_c 263 ms, 16% flight, peak 3.10 BW.
+  Cadence/contact land between 2D model and human — big realism gain;
+  peak-force bias persists (contact spheres). Committed with README
+  milestone. No heavy jobs running.
+- Next (unclaimed): 3D metabolic objective; Hamner arm-swing
+  angular-momentum validation; render the predictive gait; speed/grade
+  chains; then tier-2 groundwork.
