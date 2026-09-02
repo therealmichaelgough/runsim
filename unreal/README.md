@@ -1,86 +1,141 @@
 # RunsimViewer — Unreal Engine renderer
 
-An Unreal Engine 5.4 renderer for baked OpenSim Moco running solutions:
-capsule segments driven directly by solver output, on procedural
-variable-slope terrain, with a chase camera and user-controlled speed. It is
-the 3D counterpart of `docs/run_viewer.html`, implementing
-`docs/unreal_renderer_plan.md`.
+An Unreal Engine renderer for baked OpenSim Moco running solutions: capsule
+segments driven directly by solver output, running free over a procedural
+1 km² heightfield with user-controlled speed **and direction**, a chase
+camera, and a HUD surfacing the simulation's interesting numbers. It is the
+3D counterpart of `docs/run_viewer.html`, grown well past
+`docs/unreal_renderer_plan.md` v1.
 
-**Status: built and running.** As of 2026-08-30 this compiles clean and renders
-on the Windows workstation: **Unreal Engine 5.8.2** (`D:\unreal\UE_5.8`) with
-**MSVC 14.44** and the Windows 10.0.22621 SDK. The first build succeeded with
-zero errors and zero warnings — the 5.4-era code needed no changes for 5.8, and
-the legacy input path (`Config/DefaultInput.ini` +
-`DefaultPlayerInputClass=/Script/Engine.PlayerInput`) still works. The Python
-exporter and its tests are run and passing.
+**Status: built and running** on the Windows workstation: **Unreal Engine
+5.8.2** (`D:\unreal\UE_5.8`) with **MSVC 14.44** and the Windows 10.0.22621
+SDK, zero warnings. The Python exporter and its tests are run and passing
+(`tests/test_ue_export.py`).
 
 ## What is in the box
 
 ```
-RunsimViewer.uproject             UE 5.4 project, one C++ module, no plugins
-Config/DefaultEngine.ini          default map + global game mode
+RunsimViewer.uproject             UE project, one C++ module, no plugins beyond
+                                  the stock ProceduralMeshComponent
+Config/DefaultEngine.ini          default map + global game mode + renderer flags
 Config/DefaultGame.ini            stages Content/Data as non-asset files
 Config/DefaultInput.ini           legacy axis/action bindings (no Enhanced Input assets)
-Content/Data/gaits_ue.json        baked gaits (generated; 246 KB)
+Content/Data/gaits_ue.json        baked gaits (generated)
 Source/RunsimViewer/
-  Public/RunsimTerrainMath.h      sum-of-sines ground; the single source of truth
-  Public/RunsimGaitData.h         JSON load + speed/grade blend (port of the web viewer)
-  Public/RunsimRunner.h           capsule-per-segment actor, per-tick posing
-  Public/RunsimTerrain.h          spline-mesh ribbon + distance posts
+  Public/RunsimTerrainMath.h      analytic heightfield h(x,y); the single source of truth
+  Public/RunsimGaitData.h         JSON load + speed/grade blend + arm graft + live channels
+  Public/RunsimRunner.h           capsule-per-segment actor, heading + per-tick posing
+  Public/RunsimTerrain.h          chunked procedural-mesh heightfield renderer
   Public/RunsimPawn.h             spring-arm chase camera, input, orbit
-  Public/RunsimHUD.h              Canvas HUD (speed/pace/grade/cadence/COT)
+  Public/RunsimHUD.h              Canvas HUD (grouped metric panels)
   Public/RunsimGameMode.h         spawns the whole scene, so no level asset is needed
 ```
 
-There are **no `.uasset` files**. Meshes are the engine basic shapes
-(`/Engine/BasicShapes/Cylinder`, `Sphere`, `Cube`); the level is any empty
-map, because `ARunsimGameMode` spawns the terrain, the runner, a player start
-and two directional lights itself.
+There are **no `.uasset` files** — the project is deliberately text-only.
+Meshes are engine basic shapes plus runtime-generated procedural meshes; the
+sky is a spawned `SkyAtmosphere` + real-time-capture `SkyLight` (both fully
+procedural engine classes — no cubemap asset needed); depth comes from a
+spawned `ExponentialHeightFog`. The level is any empty map, because
+`ARunsimGameMode` spawns terrain, runner, lights, sky, fog and a player
+start itself.
+
+## Controls
+
+| Input | Action |
+|---|---|
+| `W` / `S` (or `Up` / `Down`, gamepad triggers) | target speed 1.2–5.0 m/s |
+| `A` / `D` (or `Left` / `Right`, gamepad left stick) | steer (rate-limited yaw, 60°/s max) |
+| `H` / `F` (gamepad D-pad) | hilliness 0–100% (relief scale; 0 = flat plane) |
+| `G` | gait source: blended 2D ↔ each full-3D solution wholesale |
+| `Space` | pause |
+| hold right mouse (gamepad right stick) | orbit camera (heading-relative) |
+| mouse wheel | zoom |
+| `R` | reset view |
+| `Esc` | quit |
+
+## Terrain design
+
+`Public/RunsimTerrainMath.h` defines one analytic function `h(x, y)` —
+deterministic integer-hash value noise (quintic fade) composed as:
+
+- **rolling hills** everywhere: 4-octave FBM, ~150 m wavelength, ±9 m;
+- **a ridgeline** running east–west near y = +240 m, crest wandering ±55 m
+  and modulated so it reads as a chain of summits (~+24 m);
+- **a valley meadow** meandering near y = −170 m: hills flatten toward a
+  −7 m floor — the flat, easy running;
+- **fine detail** at 23 m wavelength, suppressed on the meadow floor.
+
+Hilliness scales the whole relief. At the default 45%, the p95 slope is
+~9.5% grade (inside the solved ±16% gait range); at 100% the ridge flanks
+reach ~46% and the HUD shows `[gait clamped]` while the body still tilts.
+Grade queries are central differences of the same `h` the meshes sample, so
+ground and gait can never disagree.
+
+Rendering: an 11×11 ring buffer of 96 m chunks (a 1056 m window ≥ 1 km²),
+each one `UProceduralMeshComponent` with 4 m flat-shaded facets. Triangles
+are partitioned by relief height/slope into five palette bands (meadow,
+grass, dry grass, rock, pale ridge) drawn as separate sections tinted by
+shared dynamic material instances. Chunk rebuilds are budgeted at 4 per
+tick, nearest first — crossing a chunk boundary or scrubbing hilliness
+sweeps outward instead of hitching. Height fog + aerial perspective fold
+the window edge into the horizon so draw distance and fog stay consistent.
+
+## HUD legend
+
+| Panel | Rows |
+|---|---|
+| MOTION | speed (m/s); pace (min/km and min/mi); heading (deg + cardinal) |
+| GAIT | state (WALK / RUN / 3D PLAYBACK); cadence (spm + Hz); stride length (m); contact time (ms); flight fraction (%) |
+| GROUND | grade (%, `[gait clamped]` marker beyond the solved ±16%); elevation (m); hilliness (%) |
+| ENERGY | live vertical GRF (BW, per-frame baked channel); metabolic rate (W/kg, per-frame Bhargava where solved, else COT × v fallback); COT (J/kg/m) |
+
+An em dash means the active blend cannot report that number honestly (e.g.
+COT/metabolic rate while the effort-objective walk gaits contribute).
+Contact time and flight fraction are derived from the baked per-foot GRF
+channels (contact = vGRF > 0.05 BW), so they agree with the GRF meter by
+construction. WALK/RUN switches at walk-weight 0.5, same as the web viewer.
+
+## Known approximations
+
+- **Steering re-aims straight-line gaits.** No curve-specific solutions
+  exist; yaw is rate-limited (60°/s command, first-order follow) so turns
+  read plausibly, but the biomechanics of curve running (lean-into-turn
+  kinetics, asymmetric stride) are not simulated. Noted on the HUD.
+- **Grade clamping.** The gait blend covers ±16% grade; on steeper ground
+  the pose clamps while the body tilts to the true tangent plane.
+- **Downhill GRF spike.** The −9° gait carries the project's documented
+  impact artifact (up to ~6.4 BW total); the GRF meter shows it honestly.
+- **3D playback recentring.** The tracked 3D seed advances ~1.7 m/s over
+  ground with partial foot slip and a ~35 cm lateral offset; playback
+  subtracts the mean pelvis XY so it stays on the path.
 
 ## Build and run
 
-1. **Install Unreal Engine 5.4 or newer** via the Epic Games Launcher
-   (Library → + → 5.4.x). Any 5.4+ works; the `.uproject` says `5.4`.
-2. **Install Visual Studio 2022** with the **"Game development with C++"**
-   workload (the free Community edition or the Build Tools are both fine).
-   Make sure these individual components are ticked:
-   - MSVC v143 x64/x86 build tools
-   - Windows 10/11 SDK
-   - .NET Framework 4.6.2 targeting pack (UnrealBuildTool needs it)
-3. **Generate the project files.** Right-click
-   `unreal/RunsimViewer/RunsimViewer.uproject` in Explorer →
-   *Generate Visual Studio project files*. (If that entry is missing, run
-   `"C:\Program Files\Epic Games\UE_5.4\Engine\Binaries\Win64\UnrealVersionSelector.exe" /projectfiles <path to .uproject>`.)
-   If the engine version prompt appears, pick your installed 5.x.
-4. **Build.** Open the generated `RunsimViewer.sln`, set the configuration to
-   **Development Editor / Win64**, and build the `RunsimViewer` target.
-   Equivalent from a command line:
+1. **Unreal Engine 5.4+** (5.8.2 is what this machine runs) and **Visual
+   Studio 2022** with the C++ game-dev workload (MSVC v143, Windows SDK,
+   .NET Framework SDK 4.6+ — UBT needs the *SDK*, not just the targeting
+   pack).
+2. Build:
    ```
    "D:\unreal\UE_5.8\Engine\Build\BatchFiles\Build.bat" ^
        RunsimViewerEditor Win64 Development ^
        -Project="D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" -WaitMutex
    ```
-   To skip the editor and go straight to the render in a window:
+   (run at BelowNormal priority if solves are running; close any running
+   game/editor first — Live Coding locks the DLL.)
+3. Run windowed:
    ```
    "D:\unreal\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" ^
        "D:\runsim\unreal\RunsimViewer\RunsimViewer.uproject" ^
        -game -windowed -resx=1600 -resy=900
    ```
-5. **Open** `RunsimViewer.uproject` (double-click, or F5 from Visual Studio).
-   The editor opens on `/Engine/Maps/Entry`, an empty engine map.
-6. **Press Play.** The game mode spawns everything. If the editor opened some
-   other level, either open `/Engine/Maps/Entry` (Content Browser → settings →
-   *Show Engine Content*, then Engine → Maps) or make any empty level — the
-   game mode is global, so Play works in all of them.
-
-Controls: `W`/`S` or `Up`/`Down` change speed, `H`/`F` change hilliness,
-`Space` pauses, hold **right mouse** to orbit, mouse wheel zooms, `R` resets
-the view. Gamepad: triggers for speed, right stick to orbit, D-pad for hills.
+4. Or open the project and press Play in any empty level — the game mode
+   spawns everything.
 
 ## Regenerating the gait data
 
-`Content/Data/gaits_ue.json` is generated from the committed Moco solutions —
-regenerate it whenever those change:
+`Content/Data/gaits_ue.json` is generated from the committed Moco
+solutions — regenerate whenever those change:
 
 ```
 cd D:\runsim
@@ -88,127 +143,58 @@ cd D:\runsim
 .venv\Scripts\python.exe -m pytest tests\test_ue_export.py -q
 ```
 
-The exporter prints the resolved capsule dimensions and each gait's stride
-time, stride length and cadence. It writes straight into
-`unreal/RunsimViewer/Content/Data/`. The file is plain JSON, not a `.uasset`,
-so `DefaultGame.ini` stages `Content/Data` explicitly for packaged builds
-(`+DirectoriesToAlwaysStageAsUFS`).
+Per gait it bakes: 48 frames × per-body transforms (positions
+pelvis_tx-relative), stride time/length, speed/grade/COT, **per-foot
+vertical GRF in BW** (`grfBwL`/`grfBwR`, all gaits) and **per-frame
+metabolic rate in W/kg** (`metRateWkg`, the 2D metabolic-objective gaits).
+3D solutions listed in `GAITS_3D` are phase-rolled onto the 2D event
+convention (frames and GRF alike) and serve two roles: arm source for the
+blended mode, and wholesale playback via `G`.
 
-To add 3D gaits with arm swing later, put the solution in `GAITS_3D` at the
-top of `scripts/export_ue_gaits.py` and re-run: the arm segments are already
-declared and dimensioned, and both the exporter and the renderer already
-tolerate gaits that lack those bodies (the segments stay hidden).
+## The arm graft (and the bug it replaced)
 
-## What is verified, and what is not
+2D gaits have no arm bodies; in blended mode the arm chain is grafted from
+the first 3D solution at the same phase. The graft is **torso-relative**:
+each arm body is expressed in the 3D gait's own torso frame and composed
+onto the blended torso. Pasting the pelvis-relative transforms verbatim
+(the original rule) left the arms floating 36–40 cm from the shoulders —
+the 3D tracking seed's torso carries a ~35 cm lateral drift and 10–22° of
+lean mismatch vs the 2D torso. The invariant is pinned by
+`test_blended_arm_graft_attaches_to_shoulder` (attachment < 2 cm at every
+phase, and the naive rule must measurably detach so the test stays
+discriminating), plus elbow-rigidity and playback-attachment tests.
 
-**Verified by running it** (`tests/test_ue_export.py`, 16 tests):
+## Verification without a screen
 
-- the OpenSim → Unreal rotation conversion round-trips, and agrees exactly
-  with the matrix conjugation `R_ue = M R M^T`;
-- a rotation about the model's sagittal flexion axis becomes a *positive*
-  Unreal pitch — the sign that decides whether the runner leans into a hill
-  or out of it;
-- for real exported frames, joint-to-joint distances in Unreal space equal
-  the OpenSim distances × 100, and the exported quaternions correctly place
-  child joints when used to rotate a body-frame offset;
-- capsule lengths sit in adult human ranges (thigh 39.7 cm, shank 41.6 cm,
-  foot 16.4 cm, upper arm 28.7 cm, forearm 25.3 cm);
-- the 3.0 m/s flat gait's cadence is 3.82 Hz (the M2 acceptance number).
+- `tests/test_ue_export.py` (27 tests): rotation conversion, geometry
+  preservation, capsule dimensions, blend algorithm port, foot-skate rule,
+  GRF/met data contract, arm-graft invariants.
+- Startup log (`Saved/Logs/RunsimViewer.log`) must show:
+  `spawned runsim scene (terrain, runner, lights, sky, fog)`,
+  `terrain: 121 chunks of 96 m (121 clean), 1056 m window`,
+  `gaits_ue.json: 16 gaits, 13 segments, 12 bodies, 48 frames,
+  speed 1.20-5.00 m/s, arms present` — and no `LogRunsim` errors.
+- M2 cadence: at 3.0 m/s with hilliness 0 the HUD reads **229 spm
+  (3.82 Hz)** (`2 / 0.5241 s`; a 3D solution plays at 2.8–3.3 Hz instead).
 
-**Verified by building and running it** (UE 5.8.2, 2026-08-30):
-
-- everything in `Source/` compiles and links with zero errors and zero warnings;
-- `/Engine/Maps/Entry` exists and `ARunsimGameMode` populates it — the game log
-  reports `spawned runsim scene (terrain, runner, lights)`;
-- the data path works end to end: `gaits_ue.json: 14 gaits, 13 segments,
-  8 bodies, 48 frames, speed 1.20-5.00 m/s, arms absent`, and the four arm
-  segments hide themselves as intended.
-
-**Known cosmetic defect**: the engine logs
-
-```
-Material /Engine/BasicShapes/BasicShapeMaterial missing usage flag SplineMeshes!
-Default Material will be used in game.
-```
-
-so the terrain ribbon renders in the engine default material rather than the
-alternating dark-blue shades (the runner capsules are unaffected). The fix is to
-tick `bUsedWithSplineMeshes` on a material **asset**, which this text-only repo
-cannot express — see the deviations table above.
-
-## M1 verification — geometry against OpenSim
-
-The plan's first milestone is "limb lengths and axes correct vs an OpenSim
-screenshot". Procedure:
-
-1. Pause the sim on the first frame: press Play, then `Space` immediately.
-   (The runner poses itself once in `BeginPlay`, so frame 0 is already the
-   baked pose, not a T-pose.)
-2. Orbit with the right mouse button to a pure side view (yaw 90°, pitch 0)
-   and note the pose: trunk angle, both knees, both ankles.
-3. Render the same instant in OpenSim:
-   ```
-   .venv\Scripts\python.exe scripts\watch_gait.py ^
-       --motion experiments\phase3_2drunning\fullstride_v3_gp0_met.sto --no-follow
-   ```
-   and step to t = 0.
-4. Compare. Limb *lengths* are already pinned numerically by the tests; what
-   the screenshot adds is the **axis convention** — if a knee bends the wrong
-   way, or the runner faces −X, or the whole figure is mirrored, the
-   quaternion conversion has a sign error and
-   `tests/test_ue_export.py::test_sagittal_flexion_becomes_positive_unreal_pitch`
-   is the place to fix it.
-
-## M2 acceptance — cadence
-
-With the speed at 3.0 m/s on flat ground (press Play, leave the speed alone,
-set hills to zero with `F`), the HUD must read **228 spm (3.80 Hz)**. That is
-the 2D-sourced number: `2 / strideTime` with `strideTime = 0.524 s`. A 3D
-seed, once one exists, would read 2.8 Hz instead.
-
-If the number is right but the feet skate, the phase advance and the world
-advance have come apart — both live in `ARunsimRunner::Tick`, and the rule is
-that the body advances at `strideLen / strideTime` (what the baked stride
-actually produces), never at the speed the user asked for.
+What still needs human eyes: the minimalist look (palette, fog density,
+band thresholds), steering feel, arm placement on screen, and the M1
+side-view pose comparison against `scripts/watch_gait.py`.
 
 ## Deviations from plan
 
-`docs/unreal_renderer_plan.md` assumes an editor is available to author small
-binary assets. This machine has no engine at all, so every deviation below
-trades an asset for text.
+The plan assumed an editor for authoring small binary assets; this repo is
+text-only. Deviations that remain:
 
 | Plan | Shipped | Why |
 |---|---|---|
-| Enhanced Input (§5) | Legacy axis/action mappings in `Config/DefaultInput.ini`, with `DefaultPlayerInputClass` forced back to `/Script/Engine.PlayerInput` | Enhanced Input needs `InputAction` and `InputMappingContext` `.uasset`s. Legacy bindings are pure ini. |
-| UMG HUD widget (§6) | `ARunsimHUD::DrawHUD` on the Canvas | A UMG widget is a `.uasset`. |
-| Blueprints for input and HUD (§2) | All C++ | Same reason. There are no Blueprints in this project. |
-| A level with the actors placed | `ARunsimGameMode` spawns terrain, runner, player start and lights at `StartPlay`; default map is `/Engine/Maps/Entry` | A `.umap` is a binary asset. |
-| Sky/lighting from the level | Two directional lights (key + fill), no sky light or sky atmosphere | A sky light needs a cubemap asset; a captured sky would be black. The background is therefore flat and dark — dragging a **Sky Atmosphere** and a **Sky Light** into the level in the editor is a 30-second visual upgrade that this repo cannot make for you. |
-| Segment materials | Dynamic material instances of `/Engine/BasicShapes/BasicShapeMaterial`, setting `Color`/`BaseColor` | Per-segment colours would otherwise need a material asset. If that engine material exposes neither parameter, everything is grey until you make one. |
-| Arms phase-locked to the legs from the 3D seed (§3) | Arm segments declared, dimensioned from `models/LaiUhlrich2022`, and **hidden** | The only 3D solution on disk (`seed3d_tracking_airborne.sto`) is a rejected, airborne solve. Shipping no arms beats shipping wrong ones. `GAITS_3D` in the exporter is the one-line extension point. |
-| Grade blending as an additive delta (§3) | Additive for positions, *relative rotation* for orientations | The web viewer had no orientations; adding quaternion components is meaningless, so the grade term is applied as `Delta = GradeBlend ∘ Flat3⁻¹` on top of the speed-blended rotation. |
-| `USplineMeshComponent` ribbon regenerated on change (§4) | Fixed ring buffer of 200 one-metre spline meshes re-anchored around the runner | An endless run must not allocate. Same height function, no per-frame rebuild. |
+| Enhanced Input | Legacy ini mappings + `DefaultPlayerInputClass=/Script/Engine.PlayerInput` | Enhanced Input needs `.uasset` mapping contexts |
+| UMG HUD | `AHUD::DrawHUD` Canvas panels | UMG widgets are `.uasset`s |
+| A level with actors placed | `ARunsimGameMode` spawns everything at `StartPlay` | a `.umap` is binary |
+| Authored materials | Dynamic instances of `/Engine/BasicShapes/BasicShapeMaterial` (`Color` parameter) | a material is an asset; the palette rides on shared MIDs |
 
-Two more notes, not deviations:
-
-- The terrain height/grade functions live in exactly one file,
-  `Public/RunsimTerrainMath.h`, included by both the terrain and the runner —
-  the plan's requirement that ground and gait cannot disagree.
-- Rotation composition goes through `FTransform` rather than `FQuat::operator*`
-  wherever order matters. `FTransform`'s convention (`A * B` applies `A` then
-  `B`) is unambiguous; the quaternion operator's is easy to get backwards, and
-  a wrong guess could not have been caught by compiling on this machine.
-
-## Milestone coverage
-
-| # | Plan deliverable | Where it lives | Builds + runs? |
-|---|---|---|---|
-| M1 | Exporter + first-frame render | `scripts/export_ue_gaits.py`, `ARunsimRunner::BeginPlay` | yes |
-| M2 | Single gait looping | `URunsimGaitData::SampleGait`, `ARunsimRunner::Tick` | yes |
-| M3 | Speed blending + input | `URunsimGaitData::GetBlendedPose`, `ARunsimPawn` | yes |
-| M4 | Terrain + slope blending + chase camera | `RunsimTerrainMath.h`, `ARunsimTerrain`, `ARunsimPawn` | yes |
-| M5 | HUD + orbit camera | `ARunsimHUD`, `ARunsimPawn::InputTurn` | yes |
-
-"Builds + runs" means the code compiles and the scene loads with the gait data;
-the M1 pose comparison and the M2 cadence readout are eyeball checks, described
-above.
+Superseded v1 deviations: the spline-mesh ribbon terrain is replaced by the
+procedural heightfield; the "no sky" fill-light hack is replaced by the
+procedural SkyAtmosphere + real-time-capture SkyLight (which needs no
+assets after all); the spline-mesh material usage warning is gone with the
+ribbon.

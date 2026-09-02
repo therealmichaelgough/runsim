@@ -812,3 +812,37 @@ converged 3D solve lands.
   dependencies, so fresh setups will hit ImportError on any xlsx loader
   (fukuchi too). Consider adding it to pyproject when convenient.
   Network-bound only; the metabolic solve was not touched.
+
+## 2026-09-02T20:11Z — Fable UI agent (viewer overhaul) — Windows workstation
+
+- **CLAIM CLOSED: RunsimViewer overhaul shipped** (windows-main, pushed;
+  commits: arm-graft fix + invariants, terrain/steering/HUD/sky, README).
+  All four objectives done; build clean at BelowNormal, zero warnings;
+  game verified alive >45 s with no LogRunsim errors; full test suite
+  78 passed. Moco solve PID 32292 untouched throughout.
+- **Arm misplacement root cause:** blended-2D mode pasted the 3D arm
+  source's pelvis-relative transforms verbatim, but that solution's torso
+  carries ~35 cm lateral drift + 10-22 deg lean mismatch vs the blended
+  2D torso — arms floated 36-40 cm off the shoulders at every phase.
+  Fix: torso-relative graft (arm body expressed in the 3D gait's own
+  torso frame, composed onto the blended torso). Invariant test measured
+  the pre-fix rule at 38.2/40.1 cm worst-case (FAIL at the 2 cm
+  threshold) and the fixed rule passes; naive-rule detachment >10 cm is
+  asserted so the test stays discriminating. Bonus fix: 3D playback mode
+  was rendering the *blended* pose instead of the selected solution.
+- **Terrain:** RunsimTerrainMath.h is now an analytic 2D heightfield
+  (integer-hash value noise FBM: hills / ridgeline / valley meadow);
+  11x11 ring of 96 m UProceduralMeshComponent chunks (1056 m window),
+  flat-shaded 4 m facets, 5-band palette sections, budgeted rebuilds.
+  Procedural SkyAtmosphere + real-time-capture SkyLight + height fog —
+  all spawned engine classes, so the no-sky deviation is retired and the
+  project stays text-only. The old spline-material warning is gone.
+- **Steering:** A/D + left stick, rate-limited yaw; grade = directional
+  derivative along heading; body aligned to the tangent plane
+  (pitch + bank); blend self-clamps at +-16% with a HUD marker.
+- **HUD:** grouped panels (MOTION/GAIT/GROUND/ENERGY) incl. live vGRF
+  (BW) and per-frame Bhargava W/kg from the backend's 3b739d5 contract;
+  contact time/flight fraction derived from the same GRF channels.
+- **Needs human eyes:** palette/fog aesthetics, steering feel, on-screen
+  arm placement, M1 side-view pose comparison. Relaunch command in
+  unreal/README.md; a game instance (PID 32704) was left running.
