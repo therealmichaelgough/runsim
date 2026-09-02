@@ -36,6 +36,11 @@ public:
 	void SetTargetSpeed(float MetresPerSecond);
 	void SetHilliness(float InHilliness);
 	void SetPaused(bool bInPaused);
+
+	/** Cycle: blended 2D gaits -> each 3D solution wholesale -> back. */
+	void CyclePlaybackGait();
+	bool IsPlayback3D() const { return PlaybackIndex != INDEX_NONE; }
+	FString GetPlaybackLabel() const;
 	void TogglePaused() { SetPaused(!bPaused); }
 	bool IsPaused() const { return bPaused; }
 
@@ -84,6 +89,7 @@ protected:
 	float SpeedMps = 3.0f;
 	float TargetSpeedMps = 3.0f;
 	float Hilliness = 0.45f;
+	int32 PlaybackIndex = INDEX_NONE;  // INDEX_NONE = blended 2D mode
 	float CurrentGrade = 0.0f;
 	bool bPaused = false;
 

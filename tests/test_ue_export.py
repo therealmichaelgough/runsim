@@ -149,9 +149,9 @@ def _frame_transforms(gait, frame_index):
 def test_json_shape(data):
     assert data["format"] == "runsim.ue.gaits"
     assert data["nframes"] == ue.NFRAMES
-    assert len(data["gaits"]) == 15
+    assert len(data["gaits"]) == 16
     assert sum(g["source"] == "2d" for g in data["gaits"]) == 14
-    assert sum(g["source"] == "3d" for g in data["gaits"]) == 1
+    assert sum(g["source"] == "3d" for g in data["gaits"]) == 2
     for g in data["gaits"]:
         assert len(g["frames"]) == data["nframes"]
         assert all(len(f) == 7 * len(g["bodies"]) for f in g["frames"])

@@ -128,6 +128,42 @@ bool ARunsimRunner::HasArmData() const
 	return GaitData != nullptr && GaitData->HasArmData();
 }
 
+void ARunsimRunner::CyclePlaybackGait()
+{
+	if (GaitData == nullptr || !GaitData->IsLoaded())
+	{
+		return;
+	}
+	const TArray<int32>& ThreeD = GaitData->Get3DGaits();
+	if (ThreeD.Num() == 0)
+	{
+		return;
+	}
+	// INDEX_NONE -> ThreeD[0] -> ThreeD[1] -> ... -> INDEX_NONE
+	const int32 Pos = ThreeD.IndexOfByKey(PlaybackIndex);
+	if (PlaybackIndex == INDEX_NONE)
+	{
+		PlaybackIndex = ThreeD[0];
+	}
+	else if (Pos == INDEX_NONE || Pos + 1 >= ThreeD.Num())
+	{
+		PlaybackIndex = INDEX_NONE;
+	}
+	else
+	{
+		PlaybackIndex = ThreeD[Pos + 1];
+	}
+	UE_LOG(LogRunsim, Log, TEXT("gait source: %s"),
+		PlaybackIndex == INDEX_NONE ? TEXT("blended 2D")
+		: *GaitData->GetGaitLabel(PlaybackIndex));
+}
+
+FString ARunsimRunner::GetPlaybackLabel() const
+{
+	return (GaitData && PlaybackIndex != INDEX_NONE)
+		? GaitData->GetGaitLabel(PlaybackIndex) : FString();
+}
+
 FVector ARunsimRunner::GetGroundLocation() const
 {
 	return RunsimTerrain::GroundLocation(DistanceM, Hilliness);
@@ -150,7 +186,10 @@ void ARunsimRunner::Tick(float DeltaSeconds)
 
 		const float Grade = RunsimTerrain::GradeAt(DistanceM, Hilliness);
 		FRunsimPose Step;
-		if (GaitData->GetBlendedPose(SpeedMps, Grade, Phase, Step))
+		const bool bPosed = (PlaybackIndex != INDEX_NONE)
+			? GaitData->GetGaitPose(PlaybackIndex, Phase, Step)
+			: GaitData->GetBlendedPose(SpeedMps, Grade, Phase, Step);
+		if (bPosed)
 		{
 			// No foot skate: advance at the speed the baked stride produces,
 			// projected onto the slope, not at the requested speed.

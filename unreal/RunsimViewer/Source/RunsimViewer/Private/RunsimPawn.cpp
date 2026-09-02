@@ -101,6 +101,16 @@ void ARunsimPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		&ARunsimPawn::OnResetView);
 	PlayerInputComponent->BindAction(TEXT("RunsimQuit"), IE_Pressed, this,
 		&ARunsimPawn::OnQuit);
+	PlayerInputComponent->BindAction(TEXT("RunsimGaitSource"), IE_Pressed, this,
+		&ARunsimPawn::OnCycleGaitSource);
+}
+
+void ARunsimPawn::OnCycleGaitSource()
+{
+	if (ARunsimRunner* R = GetRunner())
+	{
+		R->CyclePlaybackGait();
+	}
 }
 
 void ARunsimPawn::OnQuit()

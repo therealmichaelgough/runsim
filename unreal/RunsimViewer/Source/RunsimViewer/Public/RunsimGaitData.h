@@ -103,6 +103,15 @@ public:
 	 */
 	bool GetBlendedPose(float Speed, float Grade, float Phase, FRunsimPose& Out) const;
 
+	/** 3D-sourced gaits, playable wholesale (every body, arms included). */
+	const TArray<int32>& Get3DGaits() const { return ThreeDGaits; }
+
+	/** One gait sampled directly at Phase — no blending. */
+	bool GetGaitPose(int32 GaitIndex, float Phase, FRunsimPose& Out) const;
+
+	/** Source-file label for the HUD. */
+	FString GetGaitLabel(int32 GaitIndex) const;
+
 private:
 	bool ParseSegments(const TSharedPtr<class FJsonObject>& Root);
 	bool ParseGaits(const TSharedPtr<class FJsonObject>& Root);
@@ -129,4 +138,5 @@ private:
 	TArray<float> GradeKeys;           // their grades, same order
 	int32 Flat3Index = INDEX_NONE;     // the flat 3.0 m/s reference gait
 	int32 ArmGaitIndex = INDEX_NONE;   // 3D arm-source gait (never blended)
+	TArray<int32> ThreeDGaits;         // all 3D-sourced gaits, load order
 };

@@ -158,6 +158,8 @@ GAITS = [
 # export (frames rolled to the 2D flat-3.0 event convention).
 GAITS_3D: list[tuple[str, float, float, float | None]] = [
     ("experiments/phase3_3drunning/seed3d_tracking.sto", 3.0, 0.0, None),
+    # converged fully-predictive gait (Phase-3 finale milestone 1)
+    ("experiments/phase3_3drunning/solution_p3d_v3_gp0.sto", 3.0, 0.0, None),
 ]
 
 

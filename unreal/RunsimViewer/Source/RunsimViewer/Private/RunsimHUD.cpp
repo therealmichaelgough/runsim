@@ -112,11 +112,21 @@ void ARunsimHUD::DrawHUD()
 
 	// Provenance + controls, bottom left.
 	const float BottomY = FMath::Max(120.0f, static_cast<float>(Canvas->SizeY) - 76.0f);
-	DrawText(Runner->HasArmData()
-			? TEXT("Moco solutions | 3D-sourced gaits (arms live)")
-			: TEXT("Moco solutions | 2D-sourced gaits, metabolic objective (no arms)"),
-		LabelColor, PanelPadding, BottomY, Small, 1.0f);
-	DrawText(FString(TEXT("W/S or UP/DOWN speed   H/F hills   SPACE pause   ESC quit   "))
+	if (Runner->IsPlayback3D())
+	{
+		DrawText(FString(TEXT("SOURCE: full 3D solution  "))
+				+ Runner->GetPlaybackLabel()
+				+ TEXT("  (speed input inactive; G to cycle)"),
+			AccentColor, PanelPadding, BottomY, Small, 1.0f);
+	}
+	else
+	{
+		DrawText(Runner->HasArmData()
+				? TEXT("SOURCE: blended 2D gaits + 3D arms  (G: play a full 3D solution)")
+				: TEXT("Moco solutions | 2D-sourced gaits, metabolic objective (no arms)"),
+			LabelColor, PanelPadding, BottomY, Small, 1.0f);
+	}
+	DrawText(FString(TEXT("W/S or UP/DOWN speed   H/F hills   G gait source   SPACE pause   ESC quit   "))
 			+ TEXT("RIGHT-MOUSE orbit   WHEEL zoom   R reset view"),
 		MutedColor, PanelPadding, BottomY + 20.0f, Small, 1.0f);
 

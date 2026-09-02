@@ -63,6 +63,7 @@ protected:
 	void OnTogglePause();
 	void OnResetView();
 	void OnQuit();
+	void OnCycleGaitSource();
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Root;

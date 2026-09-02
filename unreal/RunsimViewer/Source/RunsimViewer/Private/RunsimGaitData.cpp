@@ -93,6 +93,7 @@ bool URunsimGaitData::LoadFromFile(const FString& FullPath)
 	GradeKeys.Reset();
 	Flat3Index = INDEX_NONE;
 	ArmGaitIndex = INDEX_NONE;
+	ThreeDGaits.Reset();
 
 	FString Raw;
 	if (!FFileHelper::LoadFileToString(Raw, *FullPath))
@@ -388,6 +389,7 @@ void URunsimGaitData::BuildIndices()
 			{
 				ArmGaitIndex = i;
 			}
+			ThreeDGaits.Add(i);
 			continue;
 		}
 		if (FMath::IsNearlyZero(Gaits[i].Grade, 1.0e-6f))
@@ -608,4 +610,39 @@ bool URunsimGaitData::GetBlendedPose(float Speed, float Grade, float Phase,
 		: 0.0f;
 
 	return true;
+}
+
+bool URunsimGaitData::GetGaitPose(int32 GaitIndex, float Phase, FRunsimPose& Out) const
+{
+	if (!bLoaded || !Gaits.IsValidIndex(GaitIndex))
+	{
+		return false;
+	}
+	TArray<FVector> Pos;
+	TArray<FQuat> Rot;
+	TArray<bool> Val;
+	SampleGait(GaitIndex, Phase, Pos, Rot, Val);
+
+	const FRunsimGait& G = Gaits[GaitIndex];
+	const int32 NumGlobalBodies = BodyNames.Num();
+	Out.BodyPosition.SetNum(NumGlobalBodies);
+	Out.BodyRotation.SetNum(NumGlobalBodies);
+	Out.bBodyValid.SetNum(NumGlobalBodies);
+	for (int32 b = 0; b < NumGlobalBodies; ++b)
+	{
+		Out.bBodyValid[b] = Val[b];
+		Out.BodyPosition[b] = Val[b] ? Pos[b] : FVector::ZeroVector;
+		Out.BodyRotation[b] = Val[b] ? Rot[b] : FQuat::Identity;
+	}
+	Out.StrideTimeS = FMath::Max(0.05f, G.StrideTimeS);
+	Out.StrideLenM = FMath::Max(0.05f, G.StrideLenM);
+	Out.bHasCot = G.bHasCot;
+	Out.Cot = G.Cot;
+	Out.WalkWeight = 0.0f;
+	return true;
+}
+
+FString URunsimGaitData::GetGaitLabel(int32 GaitIndex) const
+{
+	return Gaits.IsValidIndex(GaitIndex) ? Gaits[GaitIndex].SourceFile : FString();
 }
