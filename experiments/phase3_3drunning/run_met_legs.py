@@ -31,7 +31,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
     log = json.loads(LOG.read_text()) if LOG.exists() else []
-    prev_obj = None
+    # gate baseline: best objective already recorded for this problem, so
+    # leg 1 is judged against the start file's provenance, not ungated
+    prev_objs = [r["objective"] for r in log
+                 if r.get("speed") == 3.0 and "objective" in r]
+    prev_obj = min(prev_objs) if prev_objs else None
 
     for leg in range(1, max_legs + 1):
         t0 = time.time()
@@ -61,7 +65,7 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         print(json.dumps(stats), flush=True)
         print(f"[leg {leg} done in {(time.time() - t0) / 60:.1f} min]", flush=True)
         guess = banked
-        prev_obj = r.objective
+        prev_obj = min(prev_obj, r.objective) if prev_obj is not None else r.objective
 
         if r.success:
             print("[converged - metabolic solve COMPLETE]", flush=True)
