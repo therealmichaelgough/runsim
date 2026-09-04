@@ -846,3 +846,144 @@ converged 3D solve lands.
 - **Needs human eyes:** palette/fog aesthetics, steering feel, on-screen
   arm placement, M1 side-view pose comparison. Relaunch command in
   unreal/README.md; a game instance (PID 32704) was left running.
+
+## 2026-09-02T20:25Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **GOTCHA (monitoring): venv python.exe is a launcher SHIM** — the PID
+  Start-Process returns is a ~4 MB parent; the real solver is its child
+  (found at 3.9 GB). PID-based liveness checks are unreliable (shim +
+  PID reuse); watch LOG FRESHNESS instead. Metabolic solve monitor
+  re-armed accordingly.
+- Metabolic solve (real PID 22372) is healthy but SLOW: ~100 iters in
+  ~7 h. Partly intrinsic (Bhargava AD over 80 muscles), partly core
+  contention from UE builds/tests + the viewer game instance left
+  running (PID 32704). Agents: avoid leaving game instances running
+  unattended while a solve is active.
+
+## 2026-09-03T07:40Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Metabolic solve attempt 1: auto-killed by the divergence guard** at
+  ~iter 1200 — collapsed from near-convergence (obj 2.325, inf 4.5e-2 at
+  iter 1167) into restoration with inf_pr 4.8e6. Guard worked as
+  designed; no solution file exists (Moco writes only at completion).
+- **RUNNING (claimed): capped rerun** — run_predict3d_met.py 1100 iters
+  (stop inside the known-healthy region so the trajectory gets WRITTEN),
+  then a warm-start continuation from that file (barrier reset dodges
+  late collapse — the attempt-4->5 pattern). Same logs; monitor re-armed.
+  Do not start heavy CPU jobs.
+
+## 2026-09-03T06:30Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Practice note (from user question): graceful solve stops.** Moco
+  drops a `delete_this_to_stop_optimization__<ts>.txt` sentinel in the
+  working dir per solve; DELETING it halts the solver cleanly and the
+  current iterate gets written as the solution — use this (newest
+  sentinel = the running solve, currently ...2026-09-02T235705...) for
+  pause/stall/good-enough stops instead of taskkill, which discards the
+  in-memory iterate. Hard kill remains correct only for post-collapse
+  states (the iterate is restoration garbage by then). Moco has no
+  periodic checkpointing; a capped run that completes normally is the
+  only way to bank a mid-optimization state.
+
+## 2026-09-03T18:55Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- Solver-options benchmark (25-iter legs, real 3D metabolic problem,
+  identical warm start): baseline MUMPS defaults WIN — 33.2 s/iter,
+  obj 2.517; adaptive_mu ties accuracy but 4% slower; metis_order and
+  warm_duals both slower AND worse. Conclusion: no free speedup in the
+  reachable knobs; real levers remain HSL (needs the user's Coin-HSL
+  licence + libhsl.dll; ipopt.opt pass-through PROVEN to work), coarse
+  mesh / muscle grouping, and cloud concurrency.
+- Hardware: the eighth DIMM (silent training failure) was reseated —
+  full 8-channel 256 GB now. Board silkscreen labels != firmware
+  channel labels (gotcha).
+- **RUNNING (claimed): metabolic leg chain RESUMED** from met_leg01.sto,
+  baseline config, fixed best-prior health gate (b682593). Monitor:
+  sentinel graceful-stop + heartbeats. Do not start heavy CPU jobs.
+
+## 2026-09-03T23:10Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- Metabolic legs from met_leg01.sto deterministically retrace an
+  excursion plateau (obj ~20, loose barrier mu~1e-1.8) and get gate-
+  discarded. Intervention: relaunched the leg driver with `mu_init 1e-5`
+  via D:\runsim\ipopt.opt (pass-through proven) to start the barrier
+  tight and suppress the wander. One-leg probe (~2.6 h); fallback if it
+  still plateaus: reproduce the 2.330 iterate from the effort seed with
+  distinct banking (the original leg-0 file was overwritten by leg 1 —
+  lesson: bank leg 0 too), then continue tight.
+- Existing monitor (brvjt6zsw) still valid — same log paths.
+
+## 2026-09-04T02:20Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- mu_init 1e-5 probe: trajectory changed (obj 7.7 plateau instead of 20)
+  but infeasibility grew — discarded at cap. The met_leg01 lineage is
+  abandoned.
+- **RUNNING (claimed): leg-0 REDO** — run_predict3d_met.py 1100 iters
+  from the converged effort seed (default barrier; faithful reproduction
+  of the run that reached obj 2.330), chained copy to met_leg00.sto so
+  the good iterate is BANKED this time. ~9.4 h. Next: continuation legs
+  from met_leg00.sto WITH mu_init 1e-5 (tight barrier in the post-2.33
+  region is the promising untried combination — default settings
+  collapsed there twice). Do not start heavy CPU jobs.
+
+## 2026-09-04T02:55Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Correction:** the 02:20Z leg-0 redo NEVER RAN — the PowerShell
+  -Command wrapper failed at the python invocation, then still copied
+  the stale discarded-leg solution as met_leg00.sto (Copy-Item preserved
+  its 17:48 mtime, which is how it was caught). Poison bank deleted.
+  Lesson: never bank via a shell wrapper around a solve; bank inside
+  the driver after a verified return.
+- **RUNNING (claimed): leg-0 redo, properly** — run_met_leg0.py 1100
+  (committed), banks met_leg00.sto atomically; logs met_leg0.log /
+  met_leg0_err.log; ~9.4 h. Monitor keyed to the "[leg00 banked]"
+  marker. Do not start heavy CPU jobs.
+
+## 2026-09-04T03:15Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Live status page published** (docs/status.html, artifact db doc
+  `status/current`, generator scripts/project_status.py, commit 4a03a8b).
+  This session refreshes the document at every solver heartbeat and
+  milestone (rerun the generator, push with write_db). Other agents:
+  the page reads AGENTS_LOG headers and the leg log automatically — keep
+  entry headers in protocol format and it stays accurate.
+
+## 2026-09-04T12:20Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Claim closed: leg-0 redo BANKED** — met_leg00.sto at obj 2.3303
+  (568.6 min), exact reproduction of the lost iterate; now on disk
+  permanently.
+- **RUNNING (claimed): tight-barrier continuation legs** —
+  run_met_legs.py from met_leg00.sto, 300-iter legs, up to 12, with
+  D:\runsim\ipopt.opt = `mu_init 1e-5` (the untried combination for the
+  post-2.33 region where default settings collapsed twice). Logs
+  met_legs2.log / met_legs2_err.log. Monitor: per-leg verdict lines,
+  sentinel graceful stop, hourly heartbeats. Do not start heavy CPU
+  jobs; remove ipopt.opt before any default-barrier solve.
+
+## 2026-09-04T13:40Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Finding (banked metabolic iterate met_leg00, obj 2.330, unconverged):**
+  GRFs plausible (peak 2.13 BW, t_c 221 ms, 3.13 Hz) but arms wildly off
+  the human reference (arm_flex 91 deg RMS, arm_rot 118 deg). Hypothesis:
+  the metabolic objective prices muscles only — lumbar/arm
+  CoordinateActuators are nearly unpriced (0.1-weight regularizer), so
+  arms flail freely; plausibly the destabilizer of the post-2.33 region.
+- predict3d gains `torque_weight` (per-control weight on the torque
+  actuators in the effort regularizer) as a ready option for the NEXT
+  metabolic formulation; the running tight-barrier legs are unaffected
+  and continue as the control experiment. validate_seed3d.py now takes
+  any solution path (figure per tag).
+
+## 2026-09-04T13:35Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Tight-barrier leg (mu_init 1e-5) STALLED — killed.** Mirror image of
+  the loose-barrier wander: by iter ~100 mu was 1e-9.7 and primal steps
+  collapsed to alpha 1e-3..1e-5 (~7 min/iter, obj flat 2.303, inf 5.8).
+  Gotcha: mu_init 1e-1 wanders, 1e-5 pins.
+- **RUNNING (claimed): legs with mu_init 1e-3 + torque_weight 5** from
+  met_leg00.sto (run_met_legs.py met_leg00.sto 300 12 5.0), logs
+  met_legs3.log / met_legs3_err.log. Two knobs at once, deliberately:
+  the arm-flailing finding (unpriced torque actuators) is well-motivated
+  and compute matters more than single-variable purity now. Monitor adds
+  a step-size stall guard (12 consecutive alpha_pr < 1e-3 -> alert).
