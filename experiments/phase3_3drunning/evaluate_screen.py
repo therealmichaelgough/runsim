@@ -51,12 +51,34 @@ def trace(log: Path) -> dict:
     }
 
 
-def solution_metrics(sto: Path, torque_weight: float) -> dict:
+#: torque actuator -> the coordinate it drives (for power = u * F * qdot)
+ACTUATOR_COORD = {
+    "lumbar_ext": "/jointset/back/lumbar_extension", "lumbar_bend": "/jointset/back/lumbar_bending",
+    "lumbar_rot": "/jointset/back/lumbar_rotation",
+    "shoulder_flex_r": "/jointset/acromial_r/arm_flex_r", "shoulder_add_r": "/jointset/acromial_r/arm_add_r",
+    "shoulder_rot_r": "/jointset/acromial_r/arm_rot_r", "elbow_flex_r": "/jointset/elbow_r/elbow_flex_r",
+    "pro_sup_r": "/jointset/radioulnar_r/pro_sup_r",
+    "shoulder_flex_l": "/jointset/acromial_l/arm_flex_l", "shoulder_add_l": "/jointset/acromial_l/arm_add_l",
+    "shoulder_rot_l": "/jointset/acromial_l/arm_rot_l", "elbow_flex_l": "/jointset/elbow_l/elbow_flex_l",
+    "pro_sup_l": "/jointset/radioulnar_l/pro_sup_l",
+}
+MASS = 75.16
+
+
+def solution_metrics(sto: Path, torque_weight: float,
+                     strength: dict | None = None, power_weight: float | None = None,
+                     power_on: tuple | None = None) -> dict:
     import opensim as osim
     traj = osim.MocoTrajectory(str(sto))
     t = traj.getTime().to_numpy()
     tx = traj.getState("/jointset/ground_pelvis/pelvis_tx/value").to_numpy()
     disp = float(tx[-1] - tx[0])
+
+    def optimal_force(name: str) -> float:
+        for prefix, value in (strength or {}).items():
+            if name.startswith(prefix):
+                return float(value)
+        return 10.0
     pinned = []
     for name in traj.getStateNames():
         if not name.endswith("/value"):
@@ -70,20 +92,35 @@ def solution_metrics(sto: Path, torque_weight: float) -> dict:
                     pinned.append(name.split("/")[-2])
                 break
     Im = It = 0.0
-    torque_rms = {}
+    torque_rms = {}      # control rms (activation-like)
+    torque_nm_rms = {}   # actual torque rms, N.m
+    power_term = 0.0     # squared-power goal value, J/kg/m units
+    power_w_rms = {}     # mechanical power rms, W (priced actuators)
     for name in traj.getControlNames():
         u = traj.getControl(name).to_numpy()
         integ = float(np.trapezoid(u * u, t))
+        short = name.split("/")[-1]
         if any(k in name for k in TORQUE_KEYS):
             It += integ
-            torque_rms[name.split("/")[-1]] = round(float(np.sqrt(np.mean(u * u))), 3)
+            torque_rms[short] = round(float(np.sqrt(np.mean(u * u))), 3)
+            F = optimal_force(short)
+            torque_nm_rms[short] = round(float(np.sqrt(np.mean(u * u))) * F, 1)
+            if power_weight is not None and short in ACTUATOR_COORD and (
+                    power_on is None or short.startswith(tuple(power_on))):
+                qdot = traj.getState(ACTUATOR_COORD[short] + "/speed").to_numpy()
+                p = u * F * qdot
+                power_term += power_weight * float(np.trapezoid(p * p, t)) / (MASS * disp)
+                power_w_rms[short] = round(float(np.sqrt(np.mean(p * p))), 1)
         else:
             Im += integ
     return {
         "pinned_coords": pinned, "n_pinned": len(pinned),
         "muscle_effort": round(0.1 * Im / disp, 4),
         "torque_effort": round(0.1 * torque_weight * It / disp, 4),
+        "power_term": round(power_term, 4),
         "torque_rms_top": dict(sorted(torque_rms.items(), key=lambda kv: -kv[1])[:5]),
+        "torque_Nm_rms_top": dict(sorted(torque_nm_rms.items(), key=lambda kv: -kv[1])[:5]),
+        "power_W_rms": power_w_rms,
     }
 
 
@@ -98,8 +135,11 @@ def main(torque_weight: float = 50.0) -> None:
                        step_freq_hz=r.get("step_freq_hz"), peak_bw=r.get("peak_force_bw"))
             sol = run / r["solution"]
             if sol.exists():
-                m = solution_metrics(sol, torque_weight)
-                m["met"] = round(r["objective"] - m["muscle_effort"] - m["torque_effort"], 4)
+                w = r.get("torque_weight", torque_weight) or 0.0
+                m = solution_metrics(sol, w, r.get("actuator_strength"),
+                                     r.get("torque_power_weight"),
+                                     tuple(r["torque_power_actuators"]) if r.get("torque_power_actuators") else None)
+                m["met"] = round(r["objective"] - m["muscle_effort"] - m["torque_effort"] - m["power_term"], 4)
                 out.update(m)
         print(json.dumps(out, indent=1))
 

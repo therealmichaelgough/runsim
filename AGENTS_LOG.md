@@ -1196,3 +1196,26 @@ converged 3D solve lands.
 - Also: predict3d.build_running_study assembles the problem without
   solving; tests/test_predict3d_goals.py pins goal names, weights, output
   paths and the actuator strengths (8 tests pass with the actuator tests).
+
+## 2026-09-04T20:40Z — main agent (Fable): round 3 verdict; PRODUCTION legs launched (met_legs5)
+
+- Harvested lp003/lp01/lp03 at iteration 17 (~3 min/iter, four solves):
+    weight   lumbar torque rms (ext/bend/rot, N.m)   lumbar power rms (W)   met   inf_pr  pinned
+    0.003    27 / 30 / 7                             53 / 91 / 31           2.33  16.5    13
+    0.01     19 / 21 / 6                             29 / 48 / 22           2.54   5.1    11
+    0.03     13 / 12 / 4                             14 / 21 / 12           2.79   7.3    11
+  Arms 2-3 N.m rms at every weight (tame). Trunk work scales with its
+  price as it should; the muscle metabolic term falls as the trunk works
+  more. Counting actuator work at muscle-like efficiency (|P|/0.25),
+  whole-body cost ~3.9 / 3.4 / 3.2 J/kg/m: weight 0.01 sits at the
+  physiological value with running-order lumbar loads and the lowest
+  violation. Chosen: torque_power_weight 0.01 on lumbar, u^2 weight 50,
+  literature-strength actuators, passive forces off (lp01pas still
+  recovering its guess, inf ~1.9e3; keeps running at 16 threads).
+- Reporting convention to adopt for COT: Bhargava muscles + torque
+  actuators' |P| at 0.25 (concentric) / 1.2 (eccentric) efficiency.
+- PRODUCTION: launch_legs.ps1 -Start screen\lp01\solution_screen_lp01.sto
+  -TorqueWeight 50 -Threads 48 -Strength -Power 0.01 -PowerOn lumbar,
+  300-iteration legs x 12, log met_legs5.log, launched 14:41. Monitor:
+  leg verdicts, hourly heartbeats, restoration auto-stop via sentinel,
+  step-size stall report, crash/dead-log guards.
