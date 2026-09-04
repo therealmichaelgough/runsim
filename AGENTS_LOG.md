@@ -1022,3 +1022,16 @@ converged 3D solve lands.
   (torque-weighted) legs (70567f3). Monitor: restoration + step-size
   stall guards, per-leg verdicts, hourly heartbeats. Do not start heavy
   CPU jobs.
+
+## 2026-09-04T17:35Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Finish tooling ready:** scripts/finalize_met_solution.py <sol> [tag]
+  runs validation + arm-momentum (now accepts extra motions) + station
+  export in one command for a converged metabolic solution.
+- **Interim momentum finding (banked met_leg00, unconverged, pre-bounds):**
+  arm amplitude 0.62x measured (effort gait 0.21x) but corr(arms,legs)
+  +0.17 and uncancelled 1.71 (measured: -0.99 / 0.24) — the metabolic
+  objective makes the arms MOVE far more, but without counter-rotation;
+  the flailing the new bounds + torque pricing target, quantified.
+- Bounded+torque legs (met_legs4.log) running healthily: iter ~113/h,
+  inf 8 after the first hour (the collapsed run had inf 576 here).
