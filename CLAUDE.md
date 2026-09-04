@@ -87,6 +87,24 @@ survey/plan.
   speed far from what the guess actually achieves (the tracking seed
   advances ~1.7 m/s due to treadmill-frame slip); homotope speed from
   the guess's effective value.
+- **A stall with tiny primal steps (alpha_pr ~1e-2, violation flat) is
+  usually bound pinning, not a barrier setting.** Run
+  `experiments/phase3_3drunning/evaluate_screen.py` (or its
+  bound-proximity check) on the iterate: coordinates sitting on their
+  bounds with ~zero actuator torque are using the bound as a free,
+  infinitely strong joint stop. Fix the formulation (actuator strength,
+  passive forces, physiological limit forces), not IPOPT. Moco runs IPOPT
+  with `mu_strategy adaptive` by default (lg(mu)=0.0 at iteration 0 is the
+  tell); barrier floors (`mu_target`, `mu_min`) diverge via the
+  globalization fallback and `mu_strategy monotone` abandons the warm
+  start — all measured in the 2026-09-04 screen (AGENTS_LOG).
+- **The LaiUhlrich2022 lumbar/arm CoordinateActuators are 10 N.m
+  placeholders.** Under a metabolic objective they free-ride (arms and
+  trunk flail across their bound ranges); once priced, the limbs go
+  passive and rest on bounds. Use `build_running_model(actuator_strength=
+  RUNNING_ACTUATOR_STRENGTH)` (and `passive_forces=True` for restoring
+  torques); `predict_gait_3d` rescales a stock-actuator guess's torque
+  controls automatically.
 - `analyzeMocoTrajectory` output paths are **regex patterns**
   (`.*total_metabolic_rate`), not literal `/component|output` paths — a
   literal `|` path returns an empty table.
