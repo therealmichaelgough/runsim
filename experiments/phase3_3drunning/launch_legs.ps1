@@ -21,6 +21,8 @@ param(
     [int]$LegIters = 300,
     [int]$MaxLegs = 12,
     [int]$Mesh = 50,
+    [switch]$Passive,
+    [switch]$Strength,
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -40,10 +42,12 @@ if ($IpoptOpts.Count -gt 0) {
 $env:OPENSIM_MOCO_PARALLEL = "$Threads"
 $py = Join-Path $root ".venv\Scripts\python.exe"
 $args = @("experiments\phase3_3drunning\run_met_legs.py", $startPath, "$LegIters", "$MaxLegs", "$TorqueWeight", "$Mesh")
+if ($Passive) { $args += "--passive" }
+if ($Strength) { $args += "--strength" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }
 $p = Start-Process -FilePath $py -ArgumentList $args -WorkingDirectory $root `
     -RedirectStandardOutput $out -RedirectStandardError $err -WindowStyle Hidden -PassThru
-"launched shim PID $($p.Id) at $(Get-Date -Format HH:mm:ss): threads=$Threads start=$(Split-Path -Leaf $startPath) w=$TorqueWeight legs=$MaxLegs x $LegIters mesh=$Mesh"
+"launched shim PID $($p.Id) at $(Get-Date -Format HH:mm:ss): threads=$Threads start=$(Split-Path -Leaf $startPath) w=$TorqueWeight legs=$MaxLegs x $LegIters mesh=$Mesh passive=$Passive strength=$Strength"
 "log: $out"

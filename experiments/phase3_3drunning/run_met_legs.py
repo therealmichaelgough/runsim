@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 from runsim.tier3 import solution_summary
+from runsim.tier3.model3d import RUNNING_ACTUATOR_STRENGTH
 from runsim.tier3.predict3d import predict_gait_3d
 
 HERE = Path(__file__).resolve().parent
@@ -28,18 +29,23 @@ MASS = 75.16
 def main(start: str = "solution_p3d_v3_gp0_met.sto",
          leg_iters: int = 300, max_legs: int = 12,
          torque_weight: float | None = None,
-         mesh_intervals: int = 50) -> None:
-    guess = HERE / start
+         mesh_intervals: int = 50,
+         passive_forces: bool = False,
+         actuator_strength: bool = False) -> None:
+    guess = Path(start) if Path(start).is_absolute() else HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
+    strength = RUNNING_ACTUATOR_STRENGTH if actuator_strength else None
     log = json.loads(LOG.read_text()) if LOG.exists() else []
-    # gate baseline: best objective already recorded for this problem, so
-    # leg 1 is judged against the start file's provenance, not ungated
-    # a torque_weight run adds penalty by construction, so its objectives
-    # are only comparable to legs run at the SAME weight: gate among those
+    # gate baseline: best objective already recorded for this FORMULATION
+    # (same torque weight, passive-force and actuator-strength settings —
+    # objectives across formulations are not comparable), so leg 1 is
+    # judged against prior legs of its own kind, or ungated if none
+    formulation = dict(torque_weight=torque_weight, passive_forces=passive_forces,
+                       actuator_strength=strength)
     prev_objs = [r["objective"] for r in log
                  if r.get("speed") == 3.0 and "objective" in r
-                 and r.get("torque_weight") == torque_weight]
+                 and all(r.get(k) == v for k, v in formulation.items())]
     prev_obj = min(prev_objs) if prev_objs else None
     # provenance: IPOPT reads ./ipopt.opt from the CWD at every solver start
     opt_file = Path.cwd() / "ipopt.opt"
@@ -52,13 +58,15 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         r = predict_gait_3d(3.0, out_dir=HERE, guess_path=guess,
                             max_iterations=leg_iters, objective="metabolic",
                             torque_weight=torque_weight,
-                            mesh_intervals=mesh_intervals)
+                            mesh_intervals=mesh_intervals,
+                            passive_forces=passive_forces,
+                            actuator_strength=strength)
         stats = solution_summary(r.grf_path, mass_kg=MASS)
         stats.update(speed=3.0, grade=0.0, leg=leg, success=r.success,
                      objective=r.objective,
                      cost_of_transport=r.cost_of_transport,
                      solution=r.solution_path.name,
-                     torque_weight=torque_weight, ipopt=ipopt_opts,
+                     **formulation, ipopt=ipopt_opts,
                      mesh_intervals=mesh_intervals,
                      solve_min=round(r.solve_time_s / 60, 2))
 
@@ -89,9 +97,13 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
 
 if __name__ == "__main__":
     # run_met_legs.py [start.sto] [leg_iters] [max_legs] [torque_weight] [mesh]
-    args = sys.argv[1:]
+    #                 [--passive] [--strength]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
          *([float(args[3])] if len(args) > 3 else []),
-         *([int(args[4])] if len(args) > 4 else []))
+         *([int(args[4])] if len(args) > 4 else []),
+         passive_forces="--passive" in flags,
+         actuator_strength="--strength" in flags)

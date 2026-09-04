@@ -40,6 +40,41 @@ CONTACT_PARAMS = dict(
 CONTACT_FORCES_RIGHT = [f"/forceset/contact_{name}" for name, *_ in _RIGHT_SPHERES]
 CONTACT_FORCES_LEFT = [f.replace("_r", "_l") for f in CONTACT_FORCES_RIGHT]
 
+#: Optimal forces (N.m) for the model's ideal lumbar/arm CoordinateActuators,
+#: keyed by name prefix, replacing the stock 10 N.m placeholders (which are
+#: static-optimization reserves, not a predictive-simulation trunk). Values
+#: are order-of-magnitude isometric capacities, de-rated for a sub-maximal
+#: dynamic task: lumbar extension / lateral bending / axial rotation
+#: ~200 / 150 / 100 (Graves et al. 1990 isolated lumbar extension; McGill
+#: 1991 trunk moment capacities), shoulder flexion / adduction / rotation
+#: ~60 / 60 / 30 and elbow flexion ~40 (Askew et al. 1987; Murray et al.
+#: 1985 isometric shoulder and elbow strength), forearm pro/supination ~10.
+#: Predictive 3D gait formulations drive the trunk and arms with ideal
+#: torque actuators of this order (Falisse et al. 2019).
+RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
+    "lumbar_ext": 200.0, "lumbar_bend": 150.0, "lumbar_rot": 100.0,
+    "shoulder_flex": 60.0, "shoulder_add": 60.0, "shoulder_rot": 30.0,
+    "elbow_flex": 40.0, "pro_sup": 10.0,
+}
+
+
+def set_actuator_strength(model: osim.Model,
+                          strength: dict[str, float]) -> dict[str, float]:
+    """Set each CoordinateActuator's optimal force from the first matching
+    name prefix in `strength`; returns {actuator name: N.m} as applied."""
+    applied: dict[str, float] = {}
+    fs = model.updForceSet()
+    for i in range(fs.getSize()):
+        act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+        if act is None:
+            continue
+        for prefix, value in strength.items():
+            if act.getName().startswith(prefix):
+                act.setOptimalForce(float(value))
+                applied[act.getName()] = float(value)
+                break
+    return applied
+
 
 def _all_spheres():
     for name, body, loc, radius in _RIGHT_SPHERES:
@@ -72,15 +107,29 @@ def add_running_contacts(model: osim.Model) -> None:
 def build_running_model(
     model_path: str | Path,
     out_path: str | Path | None = None,
+    *,
+    passive_forces: bool = False,
+    actuator_strength: dict[str, float] | None = None,
 ) -> osim.Model:
     """LaiUhlrich2022 -> Moco-ready running model (muscles converted,
-    contacts added). Optionally writes the processed model to out_path."""
+    contacts added). Optionally writes the processed model to out_path.
+
+    passive_forces: keep the DeGrooteFregly2016 passive fiber forces (the
+    physiological restoring torques that keep joints off their range
+    limits; Falisse 2019 models these plus explicit limit torques). Off by
+    default, matching the validated tracking/effort solves.
+    actuator_strength: optimal forces for the lumbar/arm CoordinateActuators
+    by name prefix (see RUNNING_ACTUATOR_STRENGTH); None keeps the model's
+    10 N.m placeholders."""
     processor = osim.ModelProcessor(str(model_path))
     processor.append(osim.ModOpReplaceMusclesWithDeGrooteFregly2016())
     processor.append(osim.ModOpIgnoreTendonCompliance())
-    processor.append(osim.ModOpIgnorePassiveFiberForcesDGF())
+    if not passive_forces:
+        processor.append(osim.ModOpIgnorePassiveFiberForcesDGF())
     processor.append(osim.ModOpScaleActiveFiberForceCurveWidthDGF(1.5))
     model = processor.process()
+    if actuator_strength:
+        set_actuator_strength(model, actuator_strength)
     add_running_contacts(model)
     model.finalizeConnections()
     if out_path is not None:

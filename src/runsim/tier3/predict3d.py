@@ -37,6 +37,30 @@ class GaitPrediction3D:
     objective: float
     solve_time_s: float
     cost_of_transport: float | None = None
+    passive_forces: bool = False
+    actuator_strength: dict[str, float] | None = None
+
+
+def _rescale_guess_torques(guess_path: Path | str, model: osim.Model,
+                           out_path: Path, guess_strength: float = 10.0) -> Path:
+    """Rewrite a guess so its torque-actuator controls express the same
+    torques under this model's optimal forces. Every earlier solution was
+    solved with the stock 10 N.m actuators, so a control u there means
+    10u N.m; under an actuator of F N.m the same torque is control
+    u * 10 / F. Muscle controls are untouched."""
+    traj = osim.MocoTrajectory(str(guess_path))
+    names = set(traj.getControlNames())
+    fs = model.getForceSet()
+    for i in range(fs.getSize()):
+        act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+        if act is None:
+            continue
+        path = act.getAbsolutePathString()
+        if path in names and act.getOptimalForce() != guess_strength:
+            col = traj.getControl(path).to_numpy() * (guess_strength / act.getOptimalForce())
+            traj.setControl(path, osim.Vector.createFromMat(col))
+    traj.write(str(out_path))
+    return out_path
 
 
 def _attach_metabolics(model: osim.Model) -> None:
@@ -145,16 +169,25 @@ def predict_gait_3d(
     label: str | None = None,
     objective: str = "effort",
     torque_weight: float | None = None,
+    passive_forces: bool = False,
+    actuator_strength: dict[str, float] | None = None,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
 
     objective: "effort" (cubed controls / distance) or "metabolic"
-    (Bhargava cost of transport + small quadratic effort regularizer)."""
+    (Bhargava cost of transport + small quadratic effort regularizer).
+    torque_weight: metabolic objective only — weight on the lumbar/arm
+    torque-actuator controls in the quadratic regularizer, in control
+    (activation-like, torque / optimal force) space.
+    passive_forces / actuator_strength: see model3d.build_running_model.
+    With actuator_strength set, the guess's torque controls are rescaled
+    from the stock 10 N.m actuators so the guessed torques are unchanged."""
     if objective not in ("effort", "metabolic"):
         raise ValueError("objective must be 'effort' or 'metabolic'")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    build = dict(passive_forces=passive_forces, actuator_strength=actuator_strength)
     label = label or (
         "p3d_" + f"v{speed_ms:g}_g{grade:+g}".replace("+", "p")
         .replace("-", "m").replace(".", "_")
@@ -165,7 +198,7 @@ def predict_gait_3d(
     study.setName(f"gaitPrediction3D_{label}")
     problem = study.updProblem()
 
-    model = build_running_model(model_path)
+    model = build_running_model(model_path, **build)
     theta = math.atan(grade)
     model.set_gravity(osim.Vec3(-9.81 * math.sin(theta), -9.81 * math.cos(theta), 0))
     if objective == "metabolic":
@@ -173,9 +206,12 @@ def predict_gait_3d(
     model.finalizeConnections()
     problem.setModelProcessor(osim.ModelProcessor(model))
 
-    init = build_running_model(model_path)
+    init = build_running_model(model_path, **build)
     init.initSystem()
     _add_periodicity(problem, init)
+    if guess_path is not None and actuator_strength:
+        guess_path = _rescale_guess_torques(
+            guess_path, init, out_dir / f"guess_rescaled_{label}.sto")
 
     speed_goal = osim.MocoAverageSpeedGoal("speed")
     speed_goal.set_desired_average_speed(speed_ms)
@@ -253,5 +289,6 @@ def predict_gait_3d(
         speed_ms=speed_ms, grade=grade, solution_path=sol_path,
         grf_path=grf_path, success=success,
         objective=solution.getObjective(), solve_time_s=solve_time,
-        cost_of_transport=cot,
+        cost_of_transport=cot, passive_forces=passive_forces,
+        actuator_strength=dict(actuator_strength) if actuator_strength else None,
     )
