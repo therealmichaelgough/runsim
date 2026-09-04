@@ -7,3 +7,8 @@ results/
 *.egg-info/
 .idea/
 *.log
+
+# runtime IPOPT options (per-solve knob, never committed)
+ipopt.opt
+ipopt.opt.staged
+delete_this_to_stop_optimization__*.txt
