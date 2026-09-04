@@ -1056,3 +1056,28 @@ converged 3D solve lands.
   ~200 with alpha_pr >= 1e-1 typical; if it still stalls, next levers are
   `mu_strategy adaptive` or reducing nlp_scaling aggressiveness
   (`nlp_scaling_max_gradient`), then coarser mesh.
+
+## 2026-09-04T17:45Z — main agent (Fable): leg 2 killed; cause found; 4-way barrier screen launched
+
+- Leg 2 (mu_target 1e-4 floor, w=5) from met_leg01.sto: recovered to
+  inf 2.75 in 4 full steps, barrier hit the floor by iteration 4, then
+  iteration 5 blew up (||d|| 1.4e4, alpha 2e-4). Killed the driver
+  (PID 22460) at 11:33 — nothing running under met_legs4 now.
+- ROOT CAUSE of the stall (binding_bounds diagnostic on met_leg01.sto):
+  lumbar_rotation, shoulder adduction and elbow flexion sweep their
+  ENTIRE bound ranges (elbow 30<->150 deg, trunk twist +-25 deg), hip
+  rotation and lumbar extension pinned at upper bounds, lumbar_bend
+  control saturated (+-1.1). All 13 CoordinateActuators have optimal
+  force 10 N.m; the metabolic objective prices muscles only, and the
+  w=5 quadratic regularizer priced this flailing at 0.17 of a 3.04
+  objective (met 2.72 + muscle effort 0.15 + torque effort 0.17).
+  Bound-pinned variables + collapsed barrier = clipped steps.
+- Action: experiments/phase3_3drunning/screen_barrier.py — each config
+  in its own CWD (private ipopt.opt + sentinel). Launched at 11:38, four
+  in parallel, OPENSIM_MOCO_PARALLEL=16 each, 80 iterations, torque
+  weight 50 (prices the current flailing at 1.70), all from
+  met_leg01.sto: base (defaults), adaptive (mu_strategy adaptive),
+  scale (nlp_scaling_max_gradient 1e4), floor (mu_target 1e-4).
+  Results: screen/<name>/result.json; logs screen/<name>/run.log.
+  Winner's iterate becomes the production start (met_legs5).
+- Note: actuator names are shoulder_flex/add/rot_{r,l}, not arm_*.
