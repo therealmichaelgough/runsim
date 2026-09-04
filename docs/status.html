@@ -1,0 +1,187 @@
+<title>Runsim Status</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #FAFBF9; --panel: #F1F4F2; --ink: #1C2422; --muted: #5C6D69;
+    --accent: #0E7269; --accent-soft: #0E726918; --warn: #A65A12; --bad: #A6322A;
+    --good: #1E7A45; --rule: #DCE3E0; --unit: #96682F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101615; --panel: #17201E; --ink: #E4EAE8; --muted: #92A39E;
+      --accent: #52C4B7; --accent-soft: #52C4B722; --warn: #E0A159; --bad: #E07A72;
+      --good: #6CCB8E; --rule: #263230; --unit: #D0A163;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101615; --panel: #17201E; --ink: #E4EAE8; --muted: #92A39E;
+    --accent: #52C4B7; --accent-soft: #52C4B722; --warn: #E0A159; --bad: #E07A72;
+    --good: #6CCB8E; --rule: #263230; --unit: #D0A163;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); margin: 0;
+    font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5;
+    padding: 0 1.25rem 4rem; }
+  .wrap { max-width: 64rem; margin: 0 auto; }
+  header { padding: 2.4rem 0 1rem; display: flex; justify-content: space-between;
+    align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+  h1 { font-family: "Spectral", Georgia, serif; font-weight: 600; font-size: 2rem;
+    margin: 0; }
+  .sub { color: var(--muted); margin: .2rem 0 0; max-width: 60ch; }
+  .stamp { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--muted);
+    text-align: right; }
+  .stamp b { color: var(--accent); font-weight: 500; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 1rem; margin-top: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1rem 1.1rem; }
+  .card h2 { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--muted); margin: 0 0 .7rem; font-weight: 600; }
+  .big { font-family: "IBM Plex Mono", monospace; font-size: 1.7rem; font-weight: 500;
+    font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: .25rem .9rem;
+    font-variant-numeric: tabular-nums; font-size: .92rem; }
+  .kv dt { color: var(--muted); margin: 0; }
+  .kv dd { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: .86rem; }
+  .pill { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; padding: .15rem .55rem; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--accent-soft); color: var(--accent); }
+  .pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+  .bar { height: 8px; background: var(--rule); border-radius: 4px; overflow: hidden; margin: .5rem 0 .3rem; }
+  .bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .6s; }
+  table { width: 100%; border-collapse: collapse; font-size: .86rem;
+    font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); padding: .3rem .4rem; border-bottom: 1px solid var(--rule); }
+  td { padding: .32rem .4rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td.mono, .mono { font-family: "IBM Plex Mono", monospace; font-size: .82rem; }
+  .phases li { display: grid; grid-template-columns: 5.5rem 1fr; gap: .6rem; padding: .45rem 0;
+    border-bottom: 1px solid var(--rule); font-size: .92rem; }
+  .phases { list-style: none; padding: 0; margin: 0; }
+  .phases b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+  .done { color: var(--good); } .active { color: var(--accent); } .todo { color: var(--muted); }
+  a { color: var(--accent); }
+  .links a { display: block; padding: .3rem 0; border-bottom: 1px solid var(--rule); text-decoration: none; }
+  .links a small { color: var(--muted); display: block; font-size: .78rem; }
+  .muted { color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>Runsim Status</h1>
+    <p class="sub">Live progress across the human running simulator — phases, the active solve,
+    agents, commits, and what's next.</p>
+  </div>
+  <div class="stamp">live data: <b id="livestate">connecting…</b><br>updated <span id="updated">—</span></div>
+</header>
+
+<div class="grid">
+  <div class="card" style="grid-column: 1 / -1">
+    <h2>Active solve</h2>
+    <div style="display:flex; gap:1.2rem; align-items:baseline; flex-wrap:wrap">
+      <span class="big" id="iter">—</span>
+      <span id="state" class="pill">no data</span>
+      <span class="muted" id="solvename"></span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <dl class="kv">
+      <dt>objective</dt><dd id="obj">—</dd>
+      <dt>infeasibility</dt><dd id="inf">—</dd>
+      <dt>rate</dt><dd id="rate">—</dd>
+      <dt>ETA to cap</dt><dd id="eta">—</dd>
+      <dt>headline</dt><dd id="headline" style="font-family:inherit">—</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Phases</h2>
+    <ul class="phases">
+      <li><b class="done">0 · done</b><span>Foundation — OpenSim/Moco toolchain, models, datasets</span></li>
+      <li><b class="done">1 · done</b><span>Tier-0 energetics (Minetti, Pugh, critical speed) — 24 literature tests</span></li>
+      <li><b class="done">2 · done</b><span>Tier-1 stride mechanics — Fukuchi-fitted, R² 0.86–0.91</span></li>
+      <li><b class="done">3 · done</b><span>2D predictive running — walk→run transition, metabolic COT vs Minetti, slope grid, cadence sweep</span></li>
+      <li><b class="active">3 · finale</b><span>3D predictive running — tracking seed validated; effort gait converged (3.32 Hz, 263 ms); arm-swing validation done; <em>metabolic objective solving</em></span></li>
+      <li><b class="todo">4 · next</b><span>Tier-2 tissue-load surrogates + fatigue (Miner/Weibull), trained on Tier-3 output</span></li>
+      <li><b class="todo">backlog</b><span>Gravity, superhuman muscle, technical terrain, direction change, limiting-factors capstone</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Metabolic legs (3.0 m/s)</h2>
+    <div class="tablewrap"><table id="legs"><tr><th>leg</th><th>obj</th><th>COT</th><th>peak BW</th><th>min</th><th>verdict</th></tr></table></div>
+    <p class="muted" style="font-size:.8rem; margin:.6rem 0 0">Segmented solving: each leg banks its iterate; degraded legs are discarded. Anchors: human COT ≈ 3.6–3.8 J/kg/m, peak ≈ 2.4 BW.</p>
+  </div>
+
+  <div class="card">
+    <h2>Recent commits (windows-main)</h2>
+    <div class="tablewrap"><table id="commits"><tr><th>hash</th><th>subject</th></tr></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Agent activity (AGENTS_LOG)</h2>
+    <div class="tablewrap"><table id="agents"><tr><th>time (UTC)</th><th>session</th></tr></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Deliverables</h2>
+    <div class="links">
+      <a href="https://claude.ai/code/artifact/f7b08a47-5c63-44e7-9307-224cb9e2868b">Runsim Track — web viewer<small>2D solutions on variable-slope terrain, arm swing from the 3D seed</small></a>
+      <a href="https://claude.ai/code/artifact/5c901019-5ac0-4d5b-80d1-d5bc78f2afaf">Predicted Runner<small>the converged 3D effort gait, animated</small></a>
+      <a href="https://claude.ai/code/artifact/8ceffc60-5cc9-439a-a3b0-75a1b35859bf">Grounded Seed<small>validated 3D tracking seed</small></a>
+      <a href="https://claude.ai/code/artifact/010d4b06-f549-498c-b356-382ed3bd1d8a">Airborne Reject<small>the first, failed 3D solve — kept as a record</small></a>
+      <a href="https://claude.ai/code/artifact/457e01df-673a-43ed-8661-bac5fd9505d1">Unreal Renderer Plan<small>implemented: UE 5.8 viewer with 1 km² terrain, steering, HUD</small></a>
+      <a href="https://claude.ai/code/artifact/4683ba9d-56b3-406c-9116-493e8f960c0f">Glossary<small>project and domain terms</small></a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hardware & method</h2>
+    <dl class="kv">
+      <dt>CPU</dt><dd>Threadripper PRO 3975WX · 32c/64t</dd>
+      <dt>memory</dt><dd>256 GB · 8-channel DDR4-3200</dd>
+      <dt>GPU</dt><dd>RTX 3090 24 GB (MJX tier, idle)</dd>
+      <dt>solver</dt><dd>Moco / IPOPT / MUMPS (defaults win)</dd>
+      <dt>guards</dt><dd>restoration-onset graceful stop · segmented legs · health gate</dd>
+    </dl>
+  </div>
+</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function render(d) {
+  $("updated").textContent = d.updated ? new Date(d.updated).toLocaleString() : "—";
+  $("headline").textContent = d.headline || "—";
+  const s = d.solve || {};
+  $("solvename").textContent = s.log ? `(${s.log})` : "";
+  $("iter").textContent = s.iteration != null ? `${s.iteration} / ${s.budget}` : "—";
+  const st = $("state"); st.textContent = s.state || "no data";
+  st.className = "pill " + ({healthy: "good", banked: "good", RESTORATION: "warn"}[s.state] ||
+    (String(s.state || "").startsWith("dead") ? "bad" : ""));
+  $("bar").style.width = (s.iteration != null && s.budget) ? `${Math.min(100, 100 * s.iteration / s.budget)}%` : "0";
+  $("obj").textContent = s.objective != null ? s.objective.toFixed(4) : "—";
+  $("inf").textContent = s.inf_pr != null ? `${s.inf_pr.toExponential(2)}  (dual ${s.inf_du.toExponential(1)})` : "—";
+  $("rate").textContent = s.rate_per_hr ? `${s.rate_per_hr} iter/h` : "—";
+  $("eta").textContent = s.eta_hours != null ? `${s.eta_hours} h` : "—";
+  const fill = (id, rows, cells) => {
+    const t = $(id); t.querySelectorAll("tr:not(:first-child)").forEach(r => r.remove());
+    (rows || []).forEach(r => { const tr = document.createElement("tr");
+      tr.innerHTML = cells(r); t.appendChild(tr); });
+  };
+  fill("legs", d.legs, r => `<td class="mono">${r.leg}</td><td class="mono">${r.objective}</td>` +
+    `<td class="mono">${r.cot != null ? r.cot.toFixed(2) : "—"}</td><td class="mono">${r.peak_bw}</td>` +
+    `<td class="mono">${r.min ?? "—"}</td><td>${r.converged ? "<span class='pill good'>converged</span>" : r.verdict}</td>`);
+  fill("commits", d.commits, r => `<td class="mono">${r.hash}</td><td>${r.subject}</td>`);
+  fill("agents", d.agents, r => `<td class="mono">${r.ts}</td><td>${r.who}</td>`);
+}
+(async () => {
+  const db = await window.claude?.use?.("db");
+  if (!db) { $("livestate").textContent = "unavailable in this view"; return; }
+  db.doc("status/current").onSnapshot(
+    snap => { if (snap.exists) { render(snap.data()); $("livestate").textContent = "connected"; }
+              else $("livestate").textContent = "no status document yet"; },
+    err => { $("livestate").textContent = "disconnected (" + err.code + ")"; });
+})();
+</script>
