@@ -1012,3 +1012,13 @@ converged 3D solve lands.
   _set_running_bounds now bounds arms/lumbar to physiological running
   ranges. Next: relaunch legs from met_leg00.sto with bounds +
   torque_weight 5 + DEFAULT barrier (ipopt.opt removed).
+
+## 2026-09-04T16:05Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **RUNNING (claimed): bounded-arm/lumbar + torque_weight 5 legs,
+  DEFAULT barrier** — run_met_legs.py met_leg00.sto 300 12 5.0 with
+  predict3d f76279d (arm/lumbar bounds); ipopt.opt removed. Logs
+  met_legs4.log / met_legs4_err.log. Driver gates only among comparable
+  (torque-weighted) legs (70567f3). Monitor: restoration + step-size
+  stall guards, per-leg verdicts, hourly heartbeats. Do not start heavy
+  CPU jobs.
