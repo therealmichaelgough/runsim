@@ -217,15 +217,20 @@ def analyze(model: osim.Model, path: Path, kind: str, decimate: int = 10):
     }
 
 
-def main() -> None:
+def main(extra: list[tuple[str, Path]] | None = None) -> None:
+    """extra: additional Moco solutions as (label, path) — e.g. a converged
+    metabolic-objective gait — appended as further panels/bars and
+    compared against the measured reference like the built-in motions."""
     model = osim.Model(str(MODEL))
     model.initSystem()
 
     motions = {
         "tracked seed": (SEED, "moco"),
         "predicted (effort)": (PREDICTED, "moco"),
-        "measured (Hamner RRA)": (RRA_CYCLE, "rra"),
     }
+    for label, path in (extra or []):
+        motions[label] = (Path(path), "moco")
+    motions["measured (Hamner RRA)"] = (RRA_CYCLE, "rra")
     res = {label: analyze(model, path, kind)
            for label, (path, kind) in motions.items()}
 
@@ -241,7 +246,7 @@ def main() -> None:
               f"{r['uncancelled']:>8.2f}")
 
     print("\nvs measured reference:")
-    for label in ("tracked seed", "predicted (effort)"):
+    for label in [l for l in res if l != "measured (Hamner RRA)"]:
         r = res[label]
         amp = {g: r["pp"][g] / ref["pp"][g] for g in ("arms", "legs", "total")}
         # phase lag of the arms trace vs the reference arms trace
@@ -254,7 +259,8 @@ def main() -> None:
               f"total amp x{amp['total']:.2f}  arm phase lag {lag:+d}% cycle")
 
     # ---- figure ----
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4.2))
+    n = len(res)
+    fig, axes = plt.subplots(1, n + 1, figsize=(4 * (n + 1), 4.2))
     fig.suptitle("Vertical-axis angular momentum about COM over the gait cycle "
                  "(3.0 m/s) — arm swing vs Hamner & Delp 2013")
     grid = np.linspace(0, 100, N_PHASE)
@@ -262,7 +268,7 @@ def main() -> None:
               "trunk": "tab:green", "total": "k"}
     ymax = 1.05 * max(np.abs(y).max() for r in res.values()
                       for y in r["cycle"].values())
-    for ax, (label, r) in zip(axes, res.items()):
+    for ax, (label, r) in zip(axes[:n], res.items()):
         for g in ("arms", "legs", "trunk", "total"):
             ax.plot(grid, r["cycle"][g], color=colors[g],
                     lw=2 if g == "total" else 1.5, label=g)
@@ -272,7 +278,7 @@ def main() -> None:
         ax.legend(fontsize=7)
     axes[0].set_ylabel("L$_y$ about COM (kg m$^2$/s)")
 
-    ax = axes[3]
+    ax = axes[-1]
     labels = list(res)
     x = np.arange(len(labels))
     w = 0.2
@@ -280,7 +286,8 @@ def main() -> None:
         ax.bar(x + (i - 1.5) * w, [res[l]["pp"][g] for l in labels], w,
                color=colors[g], label=g)
     ax.set_xticks(x)
-    ax.set_xticklabels(["seed", "predicted", "measured"], fontsize=8)
+    ax.set_xticklabels([l.split(" (")[0].replace("tracked ", "")
+                        for l in labels], fontsize=8)
     ax.set(title="peak-to-peak amplitude", ylabel="kg m$^2$/s")
     ax.legend(fontsize=7)
 
@@ -290,4 +297,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # extra motions as label=path (e.g. "predicted (metabolic)=met_leg05.sto",
+    # relative to experiments/phase3_3drunning or absolute)
+    extra = []
+    for arg in sys.argv[1:]:
+        label, _, p = arg.partition("=")
+        path = Path(p)
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parent.parent / "experiments" \
+                / "phase3_3drunning" / p
+        extra.append((label, path))
+    sys.exit(main(extra))
