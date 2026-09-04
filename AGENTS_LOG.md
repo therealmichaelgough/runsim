@@ -1233,3 +1233,7 @@ converged 3D solve lands.
   strong-actuator screen solutions (str*, lp*). tests/test_predict3d_
   guess_rescale.py pins stock->strong, strong->strong (identity),
   strong->stock.
+- Relaunched 14:46 as met_legs6 (same settings: lp01 start, w=50, strength,
+  lumbar power 0.01, 48 threads, 300 x 12). Monitor bp9apphk5 (verdicts,
+  hourly heartbeats, restoration auto-stop, stall/crash guards). Commit
+  fd558f0. lp01pas screen continues at 16 threads.
