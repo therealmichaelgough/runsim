@@ -1179,3 +1179,20 @@ converged 3D solve lands.
   pow01, pow03 (strength, u^2 weight 5, power 0.003/0.01/0.03) and pow01pas
   (as pow01 + passive fiber forces). Decision: physiological COT (~3-3.5),
   trunk torques tens of N.m, arm swing present, fewest pinned coordinates.
+
+## 2026-09-04T19:47Z — main agent (Fable): round 3 restarted lumbar-only (13 power goals too slow)
+
+- pow003/pow01/pow03/pow01pas (power goals on all 13 actuators): problem
+  setup 14 min (vs 4), and >3.5 min after iteration 0 no iteration 1 —
+  each MocoOutputGoal is a finite-differenced callback; 13 of them make
+  the transcription several times more expensive. Killed at 13:46 at
+  iteration 0 (nothing to harvest).
+- Relaunched 13:46 as lp003 / lp01 / lp03 / lp01pas: power goals on the
+  three lumbar actuators only (torque_power_actuators=("lumbar",), where
+  all the free work occurred), activation-space u^2 weight 50 on all 13
+  actuators to keep the arms honest (tamed them at 1-2 N.m in round 1),
+  literature-strength actuators, 60 iterations, 16 threads each, from
+  screen/base. Code: --power-on=lumbar / -PowerOn lumbar / power_on=lumbar.
+- Also: predict3d.build_running_study assembles the problem without
+  solving; tests/test_predict3d_goals.py pins goal names, weights, output
+  paths and the actuator strengths (8 tests pass with the actuator tests).
