@@ -27,7 +27,8 @@ MASS = 75.16
 
 def main(start: str = "solution_p3d_v3_gp0_met.sto",
          leg_iters: int = 300, max_legs: int = 12,
-         torque_weight: float | None = None) -> None:
+         torque_weight: float | None = None,
+         mesh_intervals: int = 50) -> None:
     guess = HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
@@ -45,7 +46,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         t0 = time.time()
         r = predict_gait_3d(3.0, out_dir=HERE, guess_path=guess,
                             max_iterations=leg_iters, objective="metabolic",
-                            torque_weight=torque_weight)
+                            torque_weight=torque_weight,
+                            mesh_intervals=mesh_intervals)
         stats = solution_summary(r.grf_path, mass_kg=MASS)
         stats.update(speed=3.0, grade=0.0, leg=leg, success=r.success,
                      objective=r.objective,
@@ -80,9 +82,10 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
 
 
 if __name__ == "__main__":
-    # run_met_legs.py [start.sto] [leg_iters] [max_legs] [torque_weight]
+    # run_met_legs.py [start.sto] [leg_iters] [max_legs] [torque_weight] [mesh]
     args = sys.argv[1:]
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
-         *([float(args[3])] if len(args) > 3 else []))
+         *([float(args[3])] if len(args) > 3 else []),
+         *([int(args[4])] if len(args) > 4 else []))
