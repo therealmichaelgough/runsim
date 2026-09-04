@@ -1219,3 +1219,17 @@ converged 3D solve lands.
   300-iteration legs x 12, log met_legs5.log, launched 14:41. Monitor:
   leg verdicts, hourly heartbeats, restoration auto-stop via sentinel,
   step-size stall report, crash/dead-log guards.
+
+## 2026-09-04T20:50Z — main agent (Fable): production restarted — guess-rescale bug fixed
+
+- BUG: predict_gait_3d rescaled every guess's torque controls by 10/F,
+  assuming stock actuators; lp01's iterate was solved WITH strong actuators,
+  so met_legs5 started with trunk/arm torques 4-20x too small (obj 2.77 at
+  it 0 vs 2.91 in the guess), and every chained leg would have re-shrunk
+  them. met_legs5 killed at 14:47 (iteration ~2).
+- FIX: every solution now gets a `<solution>.strength.json` sidecar (its
+  actuators' optimal forces); rescaling uses the sidecar (stock 10 N.m if
+  none) and is a no-op when strengths match. Sidecars written for the
+  strong-actuator screen solutions (str*, lp*). tests/test_predict3d_
+  guess_rescale.py pins stock->strong, strong->strong (identity),
+  strong->stock.

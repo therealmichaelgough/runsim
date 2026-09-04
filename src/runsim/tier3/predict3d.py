@@ -11,6 +11,7 @@ doubled horizon. Slope via rotated gravity, as in 2D.
 """
 from __future__ import annotations
 
+import json
 import math
 import time
 from dataclasses import dataclass
@@ -44,23 +45,67 @@ class GaitPrediction3D:
     torque_power_actuators: tuple[str, ...] | None = None
 
 
-def _rescale_guess_torques(guess_path: Path | str, model: osim.Model,
-                           out_path: Path, guess_strength: float = 10.0) -> Path:
-    """Rewrite a guess so its torque-actuator controls express the same
-    torques under this model's optimal forces. Every earlier solution was
-    solved with the stock 10 N.m actuators, so a control u there means
-    10u N.m; under an actuator of F N.m the same torque is control
-    u * 10 / F. Muscle controls are untouched."""
-    traj = osim.MocoTrajectory(str(guess_path))
-    names = set(traj.getControlNames())
+STOCK_ACTUATOR_STRENGTH = 10.0  # the model's placeholder optimal force, N.m
+
+
+def strength_sidecar(solution_path: Path | str) -> Path:
+    """`<solution>.strength.json`: the torque actuators' optimal forces a
+    solution was solved with, so a later solve can rescale its controls."""
+    p = Path(solution_path)
+    return p.with_name(p.stem + ".strength.json")
+
+
+def actuator_strengths(model: osim.Model) -> dict[str, float]:
+    """{CoordinateActuator name: optimal force (N.m)} of a model."""
+    out = {}
+    fs = model.getForceSet()
+    for i in range(fs.getSize()):
+        act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+        if act is not None:
+            out[act.getName()] = float(act.getOptimalForce())
+    return out
+
+
+def guess_strengths(guess_path: Path | str) -> dict[str, float] | None:
+    """Optimal forces the guess was solved with: from its sidecar, else
+    None (a solution predating sidecars: the stock actuators)."""
+    side = strength_sidecar(guess_path)
+    return json.loads(side.read_text()) if side.exists() else None
+
+
+def torque_scale_factors(model: osim.Model,
+                         guess: dict[str, float] | None) -> dict[str, float]:
+    """Per-actuator factor turning the guess's controls into this model's:
+    a control u under F_guess N.m is torque u*F_guess, i.e. control
+    u*F_guess/F_model under F_model. Only factors != 1 are returned."""
+    factors = {}
     fs = model.getForceSet()
     for i in range(fs.getSize()):
         act = osim.CoordinateActuator.safeDownCast(fs.get(i))
         if act is None:
             continue
-        path = act.getAbsolutePathString()
-        if path in names and act.getOptimalForce() != guess_strength:
-            col = traj.getControl(path).to_numpy() * (guess_strength / act.getOptimalForce())
+        f_guess = (guess or {}).get(act.getName(), STOCK_ACTUATOR_STRENGTH)
+        f_model = float(act.getOptimalForce())
+        if f_guess != f_model:
+            factors[act.getAbsolutePathString()] = f_guess / f_model
+    return factors
+
+
+def _rescale_guess_torques(guess_path: Path | str, model: osim.Model,
+                           out_path: Path) -> Path:
+    """Rewrite a guess so its torque-actuator controls express the same
+    torques under this model's optimal forces (see torque_scale_factors);
+    returns the original path when nothing needs scaling. Muscle controls
+    are untouched. Without this, chaining legs across an actuator-strength
+    change shrinks or inflates the trunk/arm torques at every restart."""
+    factors = torque_scale_factors(model, guess_strengths(guess_path))
+    if not factors:
+        return Path(guess_path)
+    traj = osim.MocoTrajectory(str(guess_path))
+    names = set(traj.getControlNames())
+    for path, factor in factors.items():
+        if path in names:
+            col = traj.getControl(path).to_numpy() * factor
             traj.setControl(path, osim.Vector.createFromMat(col))
     traj.write(str(out_path))
     return out_path
@@ -208,7 +253,7 @@ def build_running_study(
     init = build_running_model(model_path, **build)
     init.initSystem()
     _add_periodicity(problem, init)
-    if guess_path is not None and actuator_strength:
+    if guess_path is not None:
         guess_path = _rescale_guess_torques(
             guess_path, init, out_dir / f"guess_rescaled_{label}.sto")
 
@@ -308,8 +353,9 @@ def predict_gait_3d(
     the trunk ("lumbar",) where the free work occurs is much cheaper than
     pricing all thirteen.
     passive_forces / actuator_strength: see model3d.build_running_model.
-    With actuator_strength set, the guess's torque controls are rescaled
-    from the stock 10 N.m actuators so the guessed torques are unchanged."""
+    The guess's torque controls are rescaled from the strengths it was
+    solved with (its `.strength.json` sidecar; stock 10 N.m if none) so
+    the guessed torques are unchanged; every solution gets a sidecar."""
     out_dir = Path(out_dir)
     study, model, label = build_running_study(
         speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
@@ -324,6 +370,7 @@ def predict_gait_3d(
 
     sol_path = out_dir / f"solution_{label}.sto"
     solution.write(str(sol_path))
+    strength_sidecar(sol_path).write_text(json.dumps(actuator_strengths(model), indent=1))
 
     right = osim.StdVectorString()
     left = osim.StdVectorString()
