@@ -28,10 +28,14 @@ def col(table, name):
     return table.getDependentColumn(name).to_numpy()
 
 
-def main() -> None:
+def main(solution: str = "seed3d_tracking.sto", tag: str = "seed3d") -> None:
+    """solution: .sto under experiments/phase3_3drunning (any 3D solve —
+    tracking seed or predictive); tag names the output figure."""
+    global OUT
+    OUT = ROOT / "experiments" / f"phase3_{tag}_validation.png"
     model = osim.Model(str(D3 / "lai_running_model.osim"))
     model.initSystem()
-    sol = osim.MocoTrajectory(str(D3 / "seed3d_tracking.sto"))
+    sol = osim.MocoTrajectory(str(D3 / solution))
     st = sol.exportToStatesTable()
     ref = osim.TimeSeriesTable(str(D3 / "states_ref_v3.sto"))
     t = np.asarray(st.getIndependentColumn())
@@ -99,4 +103,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    main(*sys.argv[1:3])

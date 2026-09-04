@@ -127,6 +127,7 @@ def predict_gait_3d(
     max_iterations: int = 3000,
     label: str | None = None,
     objective: str = "effort",
+    torque_weight: float | None = None,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
@@ -172,6 +173,16 @@ def predict_gait_3d(
         effort = osim.MocoControlGoal("effort", 0.1)
         effort.setExponent(2)
         effort.setDivideByDisplacement(True)
+        if torque_weight is not None:
+            # Bhargava prices muscles only; the lumbar/arm CoordinateActuators
+            # are otherwise nearly free under this objective (banked iterate:
+            # arm flexion 91 deg RMS off the human reference). Weight their
+            # controls in the regularizer so torque-driven flailing costs.
+            fs = init.getForceSet()
+            for i in range(fs.getSize()):
+                f = fs.get(i)
+                if f.getConcreteClassName() == "CoordinateActuator":
+                    effort.setWeightForControl(f.getAbsolutePathString(), torque_weight)
         problem.addGoal(effort)
     else:
         effort = osim.MocoControlGoal("effort", 10)
