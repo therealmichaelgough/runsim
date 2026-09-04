@@ -34,8 +34,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     log = json.loads(LOG.read_text()) if LOG.exists() else []
     # gate baseline: best objective already recorded for this problem, so
     # leg 1 is judged against the start file's provenance, not ungated
+    # a torque_weight run adds penalty by construction, so its objectives
+    # are not comparable to unpenalized legs: gate only among its own legs
     prev_objs = [r["objective"] for r in log
-                 if r.get("speed") == 3.0 and "objective" in r]
+                 if r.get("speed") == 3.0 and "objective" in r
+                 and (torque_weight is None) == (r.get("torque_weight") is None)]
     prev_obj = min(prev_objs) if prev_objs else None
 
     for leg in range(1, max_legs + 1):
@@ -48,6 +51,7 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                      objective=r.objective,
                      cost_of_transport=r.cost_of_transport,
                      solution=r.solution_path.name,
+                     torque_weight=torque_weight,
                      solve_min=round(r.solve_time_s / 60, 2))
 
         # health gate: a degraded leg is not chained
