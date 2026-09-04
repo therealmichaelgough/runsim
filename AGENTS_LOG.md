@@ -1276,3 +1276,15 @@ converged 3D solve lands.
   passive + strength + lumbar power 0.01 + joints. Decision at the leg-1
   boundary: if knees/elbows come off their bounds without harming COT or
   cadence, restart the driver from met_leg01.sto with -Joints.
+
+## 2026-09-04T23:30Z — main agent (Fable): met_legs7 leg 1 stopped at its stall (it 144)
+
+- Leg 1 (passive + strength + lumbar power 0.01): it 144 at 17:23, obj
+  2.739, inf 3.67 flat, alpha_pr 2e-3..2e-2, mu 1e-8.1 — the bound-pinning
+  stall (knees at 0 deg, elbows at 30 deg) with 156 capped iterations of
+  near-zero progress ahead. Deleted the live sentinel at 17:25: the driver
+  banks the iterate as met_leg01.sto and starts leg 2 (barrier reset, same
+  formulation) automatically.
+- Pending decision at the lpj screen verdict (~17:50, harvest at ~it 25):
+  if knee limits + elbow springs free those joints, kill the driver and
+  relaunch with -Joints from met_leg01.sto; otherwise leg 2 continues.
