@@ -997,3 +997,18 @@ converged 3D solve lands.
   restart the driver (commit 70567f3 gates only among comparable legs)
   from the best banked met_legNN.sto — do not treat it as a real
   failure without checking inf_pr.
+
+## 2026-09-04T15:40Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- **Moderate barrier + torque_weight 5: COLLAPSED** (restoration from
+  iter 157, inf 1e8-1e9, obj 9.3 at the guarded stop) — killed before
+  the driver's retry loop. Three barrier settings now fail from the
+  2.33 region: loose wanders, tight stalls, moderate collapses ->
+  structural, not a knob.
+- **Structural hole found:** LaiUhlrich arm coordinates carry +-10 rad
+  ranges and predict3d never bounded them (nor lumbar bending/rotation);
+  with unpriced torque actuators the arms are an unbounded escape
+  route (banked iterate: arm_rot 118 deg off reference). predict3d
+  _set_running_bounds now bounds arms/lumbar to physiological running
+  ranges. Next: relaunch legs from met_leg00.sto with bounds +
+  torque_weight 5 + DEFAULT barrier (ipopt.opt removed).

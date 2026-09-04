@@ -115,6 +115,23 @@ def _set_running_bounds(problem: osim.MocoProblem, grade: float) -> None:
                              [-38 * D2R, 30 * D2R])
     problem.setStateInfo("/jointset/back/lumbar_extension/value",
                          [-35 * D2R, 10 * D2R])
+    # The model ships arm coordinates with +-10 rad ranges; unbounded arms
+    # (plus torque actuators the metabolic objective does not price) were
+    # an escape route into restoration collapse. Physiological running
+    # ranges (Hamner reference arm_flex -47..-32 deg, elbow ~110-130 deg).
+    problem.setStateInfo("/jointset/back/lumbar_bending/value", [-20 * D2R, 20 * D2R])
+    problem.setStateInfo("/jointset/back/lumbar_rotation/value", [-25 * D2R, 25 * D2R])
+    for side in ("l", "r"):
+        problem.setStateInfo(f"/jointset/acromial_{side}/arm_flex_{side}/value",
+                             [-90 * D2R, 60 * D2R])
+        problem.setStateInfo(f"/jointset/acromial_{side}/arm_add_{side}/value",
+                             [-60 * D2R, 30 * D2R])
+        problem.setStateInfo(f"/jointset/acromial_{side}/arm_rot_{side}/value",
+                             [-90 * D2R, 60 * D2R])
+        problem.setStateInfo(f"/jointset/elbow_{side}/elbow_flex_{side}/value",
+                             [30 * D2R, 150 * D2R])
+        problem.setStateInfo(f"/jointset/radioulnar_{side}/pro_sup_{side}/value",
+                             [0, 120 * D2R])
 
 
 def predict_gait_3d(
