@@ -1035,3 +1035,24 @@ converged 3D solve lands.
   the flailing the new bounds + torque pricing target, quantified.
 - Bounded+torque legs (met_legs4.log) running healthily: iter ~113/h,
   inf 8 after the first hour (the collapsed run had inf 576 here).
+
+## 2026-09-04T17:25Z — main agent (Fable): leg 1 stopped early, barrier floor for leg 2+
+
+- Bounded+torque leg 1 (met_legs4.log) stalled from iteration ~215:
+  alpha_pr 2e-3..4e-2, inf_pr flat/rising (1.93 -> 2.42 over 12 iters),
+  objective creeping 1e-4/iter, lg(mu) -8.3 while UNSCALED inf_pr ~2.
+  Mechanism: gradient-based constraint scaling lets the monotone barrier
+  strategy shrink mu long before the physical violation is small; slacks
+  ~mu/z then clip every step at the fraction-to-boundary rule. Same
+  pathology as the mu_init 1e-5 run (which stalled harder).
+- Action: deleted the live stop sentinel at iteration ~230 (graceful
+  stop; Moco writes the iterate, driver banks it as met_leg01.sto, no
+  gate baseline yet so it banks unconditionally) and placed
+  D:\runsim\ipopt.opt with `mu_target 1e-4` (barrier floor; within
+  Moco's 1e-3 tolerances). Each leg builds a fresh IPOPT instance, so
+  leg 2+ read it; leg 1 was unaffected. Git-ignored — delete the file to
+  restore defaults.
+- Watch for leg 2: inf_pr should keep falling below ~1 past iteration
+  ~200 with alpha_pr >= 1e-1 typical; if it still stalls, next levers are
+  `mu_strategy adaptive` or reducing nlp_scaling aggressiveness
+  (`nlp_scaling_max_gradient`), then coarser mesh.
