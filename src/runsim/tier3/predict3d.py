@@ -39,6 +39,7 @@ class GaitPrediction3D:
     cost_of_transport: float | None = None
     passive_forces: bool = False
     actuator_strength: dict[str, float] | None = None
+    torque_power_weight: float | None = None
 
 
 def _rescale_guess_torques(guess_path: Path | str, model: osim.Model,
@@ -171,6 +172,7 @@ def predict_gait_3d(
     torque_weight: float | None = None,
     passive_forces: bool = False,
     actuator_strength: dict[str, float] | None = None,
+    torque_power_weight: float | None = None,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
@@ -180,6 +182,13 @@ def predict_gait_3d(
     torque_weight: metabolic objective only — weight on the lumbar/arm
     torque-actuator controls in the quadratic regularizer, in control
     (activation-like, torque / optimal force) space.
+    torque_power_weight: metabolic objective only — prices the ideal
+    torque actuators' MECHANICAL WORK, which Bhargava (muscles only)
+    leaves free: sum over actuators of squared power, per kg per metre,
+    i.e. the same units as the metabolic term. Squared power leaves a
+    gentle arm swing (~10 W) nearly free while trunk flailing (~200 W)
+    costs several J/kg/m; 0.01 makes ~50 W rms per lumbar actuator cost
+    ~0.3 J/kg/m, about a tenth of running's metabolic cost.
     passive_forces / actuator_strength: see model3d.build_running_model.
     With actuator_strength set, the guess's torque controls are rescaled
     from the stock 10 N.m actuators so the guessed torques are unchanged."""
@@ -237,6 +246,17 @@ def predict_gait_3d(
                 if f.getConcreteClassName() == "CoordinateActuator":
                     effort.setWeightForControl(f.getAbsolutePathString(), torque_weight)
         problem.addGoal(effort)
+        if torque_power_weight is not None:
+            fs = init.getForceSet()
+            for i in range(fs.getSize()):
+                f = fs.get(i)
+                if f.getConcreteClassName() == "CoordinateActuator":
+                    power = osim.MocoOutputGoal(f"power_{f.getName()}", torque_power_weight)
+                    power.setOutputPath(f"{f.getAbsolutePathString()}|power")
+                    power.setExponent(2)
+                    power.setDivideByMass(True)
+                    power.setDivideByDisplacement(True)
+                    problem.addGoal(power)
     else:
         effort = osim.MocoControlGoal("effort", 10)
         effort.setExponent(3)
@@ -291,4 +311,5 @@ def predict_gait_3d(
         objective=solution.getObjective(), solve_time_s=solve_time,
         cost_of_transport=cot, passive_forces=passive_forces,
         actuator_strength=dict(actuator_strength) if actuator_strength else None,
+        torque_power_weight=torque_power_weight,
     )

@@ -31,18 +31,20 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
          torque_weight: float | None = None,
          mesh_intervals: int = 50,
          passive_forces: bool = False,
-         actuator_strength: bool = False) -> None:
+         actuator_strength: bool = False,
+         torque_power_weight: float | None = None) -> None:
     guess = Path(start) if Path(start).is_absolute() else HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
     strength = RUNNING_ACTUATOR_STRENGTH if actuator_strength else None
     log = json.loads(LOG.read_text()) if LOG.exists() else []
     # gate baseline: best objective already recorded for this FORMULATION
-    # (same torque weight, passive-force and actuator-strength settings —
-    # objectives across formulations are not comparable), so leg 1 is
-    # judged against prior legs of its own kind, or ungated if none
+    # (same torque weight, passive-force, actuator-strength and power-price
+    # settings — objectives across formulations are not comparable), so
+    # leg 1 is judged against prior legs of its own kind, or ungated if none
     formulation = dict(torque_weight=torque_weight, passive_forces=passive_forces,
-                       actuator_strength=strength)
+                       actuator_strength=strength,
+                       torque_power_weight=torque_power_weight)
     prev_objs = [r["objective"] for r in log
                  if r.get("speed") == 3.0 and "objective" in r
                  and all(r.get(k) == v for k, v in formulation.items())]
@@ -60,7 +62,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                             torque_weight=torque_weight,
                             mesh_intervals=mesh_intervals,
                             passive_forces=passive_forces,
-                            actuator_strength=strength)
+                            actuator_strength=strength,
+                            torque_power_weight=torque_power_weight)
         stats = solution_summary(r.grf_path, mass_kg=MASS)
         stats.update(speed=3.0, grade=0.0, leg=leg, success=r.success,
                      objective=r.objective,
@@ -97,13 +100,15 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
 
 if __name__ == "__main__":
     # run_met_legs.py [start.sto] [leg_iters] [max_legs] [torque_weight] [mesh]
-    #                 [--passive] [--strength]
+    #                 [--passive] [--strength] [--power=W]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    power = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--power=")), None)
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
          *([float(args[3])] if len(args) > 3 else []),
          *([int(args[4])] if len(args) > 4 else []),
          passive_forces="--passive" in flags,
-         actuator_strength="--strength" in flags)
+         actuator_strength="--strength" in flags,
+         torque_power_weight=power)

@@ -1159,3 +1159,23 @@ converged 3D solve lands.
   10-min heartbeats. Decision rule: fewest pinned coordinates and
   falling inf_pr; then production legs via launch_legs.ps1 -Strength
   [-Passive] from the winner's solution.
+
+## 2026-09-04T19:30Z — main agent (Fable): round 2 verdict (free trunk work) and round 3 (power pricing)
+
+- str50 / str20 harvested at it 18: with literature-strength actuators and
+  activation-space u^2 pricing the TRUNK ACTUATORS DO THE WORK: lumbar_bend
+  0.54 rms on 150 N.m (81 N.m), lumbar_ext 67 N.m; muscle metabolic term
+  collapsed to 1.0-1.8 J/kg/m (unphysiological), objective 1.9-2.3 while
+  inf_pr rose to 50-90; still 12 pinned coordinates. Activation pricing
+  cannot serve trunk and arms at once. strpas50/20 retired (same pricing,
+  confounded; inf ~1e3 at it 20 after the passive-force guess mismatch).
+- Fix: predict_gait_3d(torque_power_weight=w) adds a MocoOutputGoal per
+  CoordinateActuator on its `power` output, exponent 2, divided by mass and
+  displacement — squared mechanical power in the metabolic term's units.
+  Calibration: w=0.01 makes ~50 W rms per lumbar actuator cost ~0.3 J/kg/m
+  (a tenth of running cost); flailing at 200 W costs ~5. Driver --power=W,
+  launcher -Power, screen key power=.
+- Round 3 launched 13:30 (16 threads each, 60 it, from screen/base): pow003,
+  pow01, pow03 (strength, u^2 weight 5, power 0.003/0.01/0.03) and pow01pas
+  (as pow01 + passive fiber forces). Decision: physiological COT (~3-3.5),
+  trunk torques tens of N.m, arm swing present, fewest pinned coordinates.

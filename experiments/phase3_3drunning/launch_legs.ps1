@@ -23,6 +23,7 @@ param(
     [int]$Mesh = 50,
     [switch]$Passive,
     [switch]$Strength,
+    [double]$Power = -1,   # >= 0: price squared torque-actuator power at this weight
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -44,6 +45,7 @@ $py = Join-Path $root ".venv\Scripts\python.exe"
 $args = @("experiments\phase3_3drunning\run_met_legs.py", $startPath, "$LegIters", "$MaxLegs", "$TorqueWeight", "$Mesh")
 if ($Passive) { $args += "--passive" }
 if ($Strength) { $args += "--strength" }
+if ($Power -ge 0) { $args += "--power=$Power" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }
