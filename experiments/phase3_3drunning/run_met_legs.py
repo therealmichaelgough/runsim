@@ -36,11 +36,16 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     # gate baseline: best objective already recorded for this problem, so
     # leg 1 is judged against the start file's provenance, not ungated
     # a torque_weight run adds penalty by construction, so its objectives
-    # are not comparable to unpenalized legs: gate only among its own legs
+    # are only comparable to legs run at the SAME weight: gate among those
     prev_objs = [r["objective"] for r in log
                  if r.get("speed") == 3.0 and "objective" in r
-                 and (torque_weight is None) == (r.get("torque_weight") is None)]
+                 and r.get("torque_weight") == torque_weight]
     prev_obj = min(prev_objs) if prev_objs else None
+    # provenance: IPOPT reads ./ipopt.opt from the CWD at every solver start
+    opt_file = Path.cwd() / "ipopt.opt"
+    ipopt_opts = ([l.strip() for l in opt_file.read_text().splitlines()
+                   if l.strip() and not l.startswith("#")]
+                  if opt_file.exists() else [])
 
     for leg in range(1, max_legs + 1):
         t0 = time.time()
@@ -53,7 +58,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                      objective=r.objective,
                      cost_of_transport=r.cost_of_transport,
                      solution=r.solution_path.name,
-                     torque_weight=torque_weight,
+                     torque_weight=torque_weight, ipopt=ipopt_opts,
+                     mesh_intervals=mesh_intervals,
                      solve_min=round(r.solve_time_s / 60, 2))
 
         # health gate: a degraded leg is not chained
