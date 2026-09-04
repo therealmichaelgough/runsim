@@ -1081,3 +1081,24 @@ converged 3D solve lands.
   Results: screen/<name>/result.json; logs screen/<name>/run.log.
   Winner's iterate becomes the production start (met_legs5).
 - Note: actuator names are shoulder_flex/add/rot_{r,l}, not arm_*.
+
+## 2026-09-04T17:50Z — main agent (Fable): screen slots re-planned (Moco's IPOPT default is ADAPTIVE mu)
+
+- Evidence: lg(mu)=0.0 at iteration 0 in every Moco log (monotone would
+  print -1.0 for mu_init 0.1), mu at 1e-3 after ONE iteration with
+  inf_pr 4e3, and the "adaptive" screen config reproduced "base" to 8
+  digits. So Moco/CasADi already runs mu_strategy adaptive: the barrier
+  collapse-while-infeasible is the adaptive oracle chasing complementarity,
+  and mu_target acts as its floor. nlp_scaling_max_gradient 1e4 matched
+  base to 7 digits: gradient scaling was not the driver either.
+- Killed the redundant adaptive + scale screens at 11:47; launched in
+  their slots: monotone (mu_strategy monotone, w=50 — the classic
+  barrier test couples mu to feasibility) and w100 (defaults, torque
+  weight 100 — pricing direction). base (w=50) and floor (mu_target
+  1e-4, w=50) continue. ~95 s/iteration each with four concurrent
+  (bandwidth-bound), so 80 iterations ~2 h; may stop early via each
+  run's private sentinel once the configs separate.
+- Decision rule: prefer the config with lowest inf_pr and fewest
+  bound-pinned coordinates at equal iteration count (evaluate_screen.py);
+  w chosen so torque rms drops well below saturation without freezing
+  arm swing (validate later vs Hamner arm amplitude).
