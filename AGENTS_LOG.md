@@ -987,3 +987,13 @@ converged 3D solve lands.
   the arm-flailing finding (unpriced torque actuators) is well-motivated
   and compute matters more than single-variable purity now. Monitor adds
   a step-size stall guard (12 consecutive alpha_pr < 1e-3 -> alert).
+
+## 2026-09-04T14:50Z — Claude Code session (monitor + 3D phase) — Windows workstation
+
+- Caveat on the RUNNING torque-weighted legs: the in-memory driver
+  still gates against the unpenalized baseline (2.33 x 1.5 = 3.5). Its
+  objectives include the actuator penalty, so a leg ending 3.5-4.0 with
+  good feasibility could be spuriously "DEGRADED". If that appears,
+  restart the driver (commit 70567f3 gates only among comparable legs)
+  from the best banked met_legNN.sto — do not treat it as a real
+  failure without checking inf_pr.
