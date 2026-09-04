@@ -1102,3 +1102,20 @@ converged 3D solve lands.
   bound-pinned coordinates at equal iteration count (evaluate_screen.py);
   w chosen so torque rms drops well below saturation without freezing
   arm swing (validate later vs Hamner arm amplitude).
+
+## 2026-09-04T18:20Z — main agent (Fable): screen at 30 min — floor diverged, monotone too slow; two new slots
+
+- floor (adaptive + mu_target 1e-4): diverged (obj 46.8, inf 5e3 at it 18;
+  the oracle bounced mu up to 0.6) — stopped gracefully, result recorded.
+  mu_target changes the adaptive oracle's complementarity target; wrong knob.
+- monotone (mu_init 0.1): warm start destroyed (obj 38, inf 625 at it 16,
+  mu still 0.1) — would burn most of a 300-iteration leg re-converging.
+  Stopped gracefully at 12:19, result recorded.
+- base (adaptive default, w=50): it 24, obj 3.53, inf 15, but mu 1e-6.3 and
+  alpha_pr down to 0.03 — the leg-1 stall pattern re-forming. w100 tracks base.
+- Launched 12:19 in the freed slots (w=50, from met_leg01.sto, 16 threads):
+  mono2 = mu_strategy monotone + mu_init 0.01 (keep the warm start, keep the
+  feasibility-coupled mu decrease); mumin = adaptive default + mu_min 1e-4
+  (the adaptive-mode floor). Monitor restarted over base/w100/mono2/mumin.
+- Plan: harvest the best iterate by graceful stop as soon as a config shows
+  inf < ~1 with alpha_pr healthy; launch production via launch_legs.ps1.
