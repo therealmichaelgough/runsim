@@ -19,10 +19,43 @@ def model():
     return m
 
 
-def test_forces_present_only_when_requested():
+PASSIVE_PREFIXES = ("knee_limit_", "hip_rot_limit_", "elbow_spring_", "shoulder_spring_", "lumbar_spring_")
+
+
+def _names(m):
+    return [m.getForceSet().get(i).getName() for i in range(m.getForceSet().getSize())]
+
+
+def test_forces_present_only_when_requested(model):
     plain = build_running_model(MODEL)
-    names = [plain.getForceSet().get(i).getName() for i in range(plain.getForceSet().getSize())]
-    assert not any(n.startswith(("knee_limit_", "elbow_spring_")) for n in names)
+    assert not any(n.startswith(PASSIVE_PREFIXES) for n in _names(plain))
+    added = [n for n in _names(model) if n.startswith(PASSIVE_PREFIXES)]
+    # 2 knees + 2 hips + 2 elbows + 4 shoulder springs + 3 lumbar springs
+    assert len(added) == 13
+    assert {"lumbar_spring_extension", "lumbar_spring_bending", "lumbar_spring_rotation",
+            "shoulder_spring_add_r", "shoulder_spring_rot_l", "hip_rot_limit_r"} <= set(added)
+
+
+def test_hip_rotation_limit_parameters(model):
+    f = osim.CoordinateLimitForce.safeDownCast(model.getForceSet().get("hip_rot_limit_l"))
+    assert f.get_coordinate() == "hip_rotation_l"
+    assert f.get_upper_limit() == JOINT_PASSIVES["hip_rot_limit_deg"]
+    assert f.get_lower_limit() == -JOINT_PASSIVES["hip_rot_limit_deg"]
+
+
+def test_lumbar_spring_stiffness_and_damping(model):
+    """1 N.m/deg toward neutral: 10 deg of extension gives -10 N.m; a
+    speed of 100 deg/s at neutral gives -2 N.m of damping."""
+    state = model.initSystem()
+    coord = model.getCoordinateSet().get("lumbar_extension")
+    spring = osim.ExpressionBasedCoordinateForce.safeDownCast(
+        model.getForceSet().get("lumbar_spring_extension"))
+    coord.setValue(state, math.radians(10.0)); coord.setSpeedValue(state, 0.0)
+    model.realizeDynamics(state)
+    assert spring.calcExpressionForce(state) == pytest.approx(-10.0, rel=1e-3)
+    coord.setValue(state, 0.0); coord.setSpeedValue(state, math.radians(100.0))
+    model.realizeDynamics(state)
+    assert spring.calcExpressionForce(state) == pytest.approx(-2.0, rel=1e-3)
 
 
 def test_knee_limit_parameters(model):

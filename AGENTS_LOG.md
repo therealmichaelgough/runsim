@@ -1288,3 +1288,22 @@ converged 3D solve lands.
 - Pending decision at the lpj screen verdict (~17:50, harvest at ~it 25):
   if knee limits + elbow springs free those joints, kill the driver and
   relaunch with -Joints from met_leg01.sto; otherwise leg 2 continues.
+
+## 2026-09-04T23:35Z — main agent (Fable): leg-1 iterate re-pinned the trunk; full joint-passives set
+
+- met_leg01.sto (it 144): obj 2.738 = met 2.279 + muscle effort 0.107 +
+  torque effort 0.147 + lumbar power term 0.205; trunk 24/23/9 N.m rms,
+  36/51/27 W; PINNED 13: all three lumbar coordinates, hip rotation,
+  knees, shoulder adduction and rotation. The lumbar joint has no muscles
+  and no passive elements, so with strong actuators the trunk swings
+  between its bounds (free stops) — the passive fiber forces that freed
+  the hips/trunk at iteration 34 do not act on the lumbar joint at all.
+  Whole-body cost incl. trunk work at 0.25 efficiency ~3.3 J/kg/m.
+- add_joint_passives extended: lumbar springs + dampers toward neutral
+  (1 N.m/deg, 0.02 N.m.s/deg; Panjabi 1992 / Falisse 2019 order),
+  shoulder add/rot springs (0.05 N.m/deg), hip-rotation limits (+-25 deg,
+  5 N.m/deg), plus the knee limits and elbow springs. 13 passive elements.
+  Tests extended (lumbar spring torque/damping, hip limit parameters).
+- lpj (knees+elbows only, it 18) killed 17:28 — superseded. Next: screen
+  lpj2 with the full set from met_leg01.sto; leg 2 of met_legs7 continues
+  meanwhile.
