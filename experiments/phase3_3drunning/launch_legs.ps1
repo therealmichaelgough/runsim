@@ -24,6 +24,7 @@ param(
     [switch]$Passive,
     [switch]$Strength,
     [double]$Power = -1,   # >= 0: price squared torque-actuator power at this weight
+    [string]$PowerOn = "",  # e.g. "lumbar" — actuator name prefixes to power-price (all if empty)
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -46,6 +47,7 @@ $args = @("experiments\phase3_3drunning\run_met_legs.py", $startPath, "$LegIters
 if ($Passive) { $args += "--passive" }
 if ($Strength) { $args += "--strength" }
 if ($Power -ge 0) { $args += "--power=$Power" }
+if ($PowerOn -ne "") { $args += "--power-on=$PowerOn" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }

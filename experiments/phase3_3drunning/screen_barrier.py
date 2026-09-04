@@ -11,7 +11,9 @@ Usage: screen_barrier.py <name> <torque_weight> <max_iters> [key=value ...]
   formulation keys: start=<file relative to this dir>  (default
                     met_leg01.sto), passive=1 (keep passive fiber forces),
                     strength=1 (RUNNING_ACTUATOR_STRENGTH torque actuators),
-                    power=<w> (price squared torque-actuator power at w)
+                    power=<w> (price squared torque-actuator power at w),
+                    power_on=lumbar[,shoulder,...] (which actuators; all
+                    if omitted — each is a costly goal callback)
   every other key=value is written to the run's ipopt.opt, e.g.
     screen_barrier.py adaptive 50 80 mu_strategy=adaptive
 Writes <run>/result.json and prints it; the solution stays in <run>/ for
@@ -24,7 +26,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MASS = 75.16
-FORMULATION_KEYS = ("start", "passive", "strength", "power")
+FORMULATION_KEYS = ("start", "passive", "strength", "power", "power_on")
 
 
 def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> None:
@@ -45,15 +47,16 @@ def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> No
     passive = form.get("passive", "0") not in ("0", "", "false", "no")
     strength = RUNNING_ACTUATOR_STRENGTH if form.get("strength", "0") not in ("0", "", "false", "no") else None
     power = float(form["power"]) if "power" in form else None
+    power_on = tuple(form["power_on"].split(",")) if form.get("power_on") else None
     r = predict_gait_3d(3.0, out_dir=run, guess_path=HERE / start,
                         max_iterations=max_iters, objective="metabolic",
                         torque_weight=torque_weight, label=f"screen_{name}",
                         passive_forces=passive, actuator_strength=strength,
-                        torque_power_weight=power)
+                        torque_power_weight=power, torque_power_actuators=power_on)
     stats = solution_summary(r.grf_path, mass_kg=MASS)
     stats.update(name=name, torque_weight=torque_weight, start=start,
                  passive_forces=passive, actuator_strength=strength,
-                 torque_power_weight=power,
+                 torque_power_weight=power, torque_power_actuators=power_on,
                  ipopt=dict(ipopt), objective=r.objective, success=r.success,
                  cost_of_transport=r.cost_of_transport,
                  solution=r.solution_path.name,

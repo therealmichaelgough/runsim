@@ -12,6 +12,7 @@ doubled horizon. Slope via rotated gravity, as in 2D.
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,6 +41,7 @@ class GaitPrediction3D:
     passive_forces: bool = False
     actuator_strength: dict[str, float] | None = None
     torque_power_weight: float | None = None
+    torque_power_actuators: tuple[str, ...] | None = None
 
 
 def _rescale_guess_torques(guess_path: Path | str, model: osim.Model,
@@ -159,7 +161,13 @@ def _set_running_bounds(problem: osim.MocoProblem, grade: float) -> None:
                              [0, 120 * D2R])
 
 
-def predict_gait_3d(
+def gait_label(speed_ms: float, grade: float, objective: str) -> str:
+    return ("p3d_" + f"v{speed_ms:g}_g{grade:+g}".replace("+", "p")
+            .replace("-", "m").replace(".", "_")
+            + ("_met" if objective == "metabolic" else ""))
+
+
+def build_running_study(
     speed_ms: float,
     grade: float = 0.0,
     out_dir: Path | str = ".",
@@ -173,35 +181,17 @@ def predict_gait_3d(
     passive_forces: bool = False,
     actuator_strength: dict[str, float] | None = None,
     torque_power_weight: float | None = None,
-) -> GaitPrediction3D:
-    """Solve one predictive full-cycle 3D running problem; write the
-    solution and GRFs into out_dir.
-
-    objective: "effort" (cubed controls / distance) or "metabolic"
-    (Bhargava cost of transport + small quadratic effort regularizer).
-    torque_weight: metabolic objective only — weight on the lumbar/arm
-    torque-actuator controls in the quadratic regularizer, in control
-    (activation-like, torque / optimal force) space.
-    torque_power_weight: metabolic objective only — prices the ideal
-    torque actuators' MECHANICAL WORK, which Bhargava (muscles only)
-    leaves free: sum over actuators of squared power, per kg per metre,
-    i.e. the same units as the metabolic term. Squared power leaves a
-    gentle arm swing (~10 W) nearly free while trunk flailing (~200 W)
-    costs several J/kg/m; 0.01 makes ~50 W rms per lumbar actuator cost
-    ~0.3 J/kg/m, about a tenth of running's metabolic cost.
-    passive_forces / actuator_strength: see model3d.build_running_model.
-    With actuator_strength set, the guess's torque controls are rescaled
-    from the stock 10 N.m actuators so the guessed torques are unchanged."""
+    torque_power_actuators: tuple[str, ...] | None = None,
+) -> tuple[osim.MocoStudy, osim.Model, str]:
+    """Assemble the predictive problem without solving it: returns the
+    study, the (metabolics-equipped) model, and the solution label.
+    Parameters as for predict_gait_3d."""
     if objective not in ("effort", "metabolic"):
         raise ValueError("objective must be 'effort' or 'metabolic'")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    label = label or gait_label(speed_ms, grade, objective)
     build = dict(passive_forces=passive_forces, actuator_strength=actuator_strength)
-    label = label or (
-        "p3d_" + f"v{speed_ms:g}_g{grade:+g}".replace("+", "p")
-        .replace("-", "m").replace(".", "_")
-        + ("_met" if objective == "metabolic" else "")
-    )
 
     study = osim.MocoStudy()
     study.setName(f"gaitPrediction3D_{label}")
@@ -250,7 +240,9 @@ def predict_gait_3d(
             fs = init.getForceSet()
             for i in range(fs.getSize()):
                 f = fs.get(i)
-                if f.getConcreteClassName() == "CoordinateActuator":
+                if f.getConcreteClassName() == "CoordinateActuator" and (
+                        torque_power_actuators is None
+                        or f.getName().startswith(tuple(torque_power_actuators))):
                     power = osim.MocoOutputGoal(f"power_{f.getName()}", torque_power_weight)
                     power.setOutputPath(f"{f.getAbsolutePathString()}|power")
                     power.setExponent(2)
@@ -276,8 +268,53 @@ def predict_gait_3d(
     solver.set_optim_max_iterations(max_iterations)
     if guess_path is not None:
         solver.setGuessFile(str(guess_path))
+    return study, model, label
 
-    import time
+
+def predict_gait_3d(
+    speed_ms: float,
+    grade: float = 0.0,
+    out_dir: Path | str = ".",
+    guess_path: Path | str | None = None,
+    model_path: Path | str = DEFAULT_MODEL,
+    mesh_intervals: int = 50,
+    max_iterations: int = 3000,
+    label: str | None = None,
+    objective: str = "effort",
+    torque_weight: float | None = None,
+    passive_forces: bool = False,
+    actuator_strength: dict[str, float] | None = None,
+    torque_power_weight: float | None = None,
+    torque_power_actuators: tuple[str, ...] | None = None,
+) -> GaitPrediction3D:
+    """Solve one predictive full-cycle 3D running problem; write the
+    solution and GRFs into out_dir.
+
+    objective: "effort" (cubed controls / distance) or "metabolic"
+    (Bhargava cost of transport + small quadratic effort regularizer).
+    torque_weight: metabolic objective only — weight on the lumbar/arm
+    torque-actuator controls in the quadratic regularizer, in control
+    (activation-like, torque / optimal force) space.
+    torque_power_weight: metabolic objective only — prices the ideal
+    torque actuators' MECHANICAL WORK, which Bhargava (muscles only)
+    leaves free: sum over actuators of squared power, per kg per metre,
+    i.e. the same units as the metabolic term. Squared power leaves a
+    gentle arm swing (~10 W) nearly free while trunk flailing (~200 W)
+    costs several J/kg/m; 0.01 makes ~50 W rms per lumbar actuator cost
+    ~0.3 J/kg/m, about a tenth of running's metabolic cost.
+    torque_power_actuators: name prefixes of the actuators to price this
+    way (None = all CoordinateActuators). Each priced actuator is one more
+    finite-differenced goal callback in the transcription, so pricing only
+    the trunk ("lumbar",) where the free work occurs is much cheaper than
+    pricing all thirteen.
+    passive_forces / actuator_strength: see model3d.build_running_model.
+    With actuator_strength set, the guess's torque controls are rescaled
+    from the stock 10 N.m actuators so the guessed torques are unchanged."""
+    out_dir = Path(out_dir)
+    study, model, label = build_running_study(
+        speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
+        max_iterations, label, objective, torque_weight, passive_forces,
+        actuator_strength, torque_power_weight, torque_power_actuators)
 
     t0 = time.time()
     solution = study.solve()
@@ -312,4 +349,5 @@ def predict_gait_3d(
         cost_of_transport=cot, passive_forces=passive_forces,
         actuator_strength=dict(actuator_strength) if actuator_strength else None,
         torque_power_weight=torque_power_weight,
+        torque_power_actuators=tuple(torque_power_actuators) if torque_power_actuators else None,
     )
