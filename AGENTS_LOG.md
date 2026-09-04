@@ -1237,3 +1237,23 @@ converged 3D solve lands.
   lumbar power 0.01, 48 threads, 300 x 12). Monitor bp9apphk5 (verdicts,
   hourly heartbeats, restoration auto-stop, stall/crash guards). Commit
   fd558f0. lp01pas screen continues at 16 threads.
+
+## 2026-09-04T21:25Z — main agent (Fable): passive forces win; production switched to met_legs7
+
+- lp01pas harvested at iteration 34 (obj 3.710, inf 33, met 3.46,
+  COT 3.47 J/kg/m, 3.46 Hz, 1.83 BW peak — unconverged): PINNED 6 vs 11
+  without passive forces. Hip rotation, lumbar extension/rotation and arm
+  rotation lifted off their bounds; only the knees (full extension, a real
+  limit) and the muscle-less elbows remain. Trunk 16/14/3 N.m rms, arms
+  ~1.6 N.m. Structural improvement (restoring torques exist or not), so
+  production switched now rather than after a superseded 5-h leg.
+- met_legs6 (passive off) killed at 15:22 at ~iteration 30. met_legs7
+  launched 15:22 via launch_legs.ps1 -Passive -Strength -Power 0.01
+  -PowerOn lumbar -TorqueWeight 50 -Threads 64, from
+  screen/lp01pas/solution_screen_lp01pas.sto (sidecar written first —
+  that solution predates sidecars). Monitor: verdicts, hourly heartbeats,
+  restoration auto-stop, stall/crash guards.
+- Remaining formulation item: elbows rest on the 30-deg lower bound with
+  no muscle to hold them (Hamner runners ~110-130 deg). Candidate fix for
+  a later leg: passive elbow stiffness toward ~100 deg (CoordinateLimit-
+  Force / ExpressionBasedCoordinateForce) rather than a tighter bound.
