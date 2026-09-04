@@ -89,7 +89,7 @@ def agent_entries(n: int = 6) -> list[dict]:
     path = ROOT / "AGENTS_LOG.md"
     if not path.exists():
         return []
-    heads = re.findall(r"^## (\S+) — (.+?) — ", path.read_text(), re.M)
+    heads = re.findall(r"^## (\S+) — (.+?) — ", path.read_text(encoding="utf-8"), re.M)
     return [{"ts": ts, "who": who} for ts, who in heads[-n:]]
 
 
