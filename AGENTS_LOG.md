@@ -1119,3 +1119,43 @@ converged 3D solve lands.
   (the adaptive-mode floor). Monitor restarted over base/w100/mono2/mumin.
 - Plan: harvest the best iterate by graceful stop as soon as a config shows
   inf < ~1 with alpha_pr healthy; launch production via launch_legs.ps1.
+
+## 2026-09-04T18:55Z — main agent (Fable): barrier screen concluded — bounds act as free joint stops
+
+- IPOPT option space does NOT fix the stall: adaptive default stalls
+  (alpha 0.02, inf ~35 by it 45); mu_target and mu_min floors diverge
+  identically (globalization fallback bounces mu to 0.6, obj 40-80);
+  monotone at mu_init 0.1 or 0.01 abandons the warm start (obj 18-55).
+  All recorded in screen/<name>/result.json.
+- Harvested base (w=50, 46 it): obj 3.3215 = met 3.064 + muscle effort
+  0.145 + torque effort 0.112; COT 3.07 J/kg/m, 3.17 Hz, 2.16 BW. Torque
+  controls fell 0.48 -> ~0.1 rms (shoulders ~1-2 N.m): the actuators were
+  FREE-RIDING, not too weak. But 12 coordinates remain pinned with ~zero
+  torque behind them: elbows, arm_rot, lumbar_rotation/extension,
+  hip_rotation, knees at 0 deg. Mechanism: a coordinate bound is a free,
+  infinitely strong joint stop; limbs priced into passivity rest on it.
+- Contributing model choices: 13 CoordinateActuators at the model's 10 N.m
+  default (active arm/trunk control unaffordable at any sane weight) and
+  muscle passive forces disabled in build_running_model (no physiological
+  restoring torques keeping joints off their limits).
+- Next: screen 2 (4 x 40 it, from the harvested base iterate): stronger
+  actuators (lumbar 200/150/100, shoulders 60/60/30, elbow 40, pro_sup 10)
+  with activation-space u^2 pricing, x passive forces on/off, x w 50/20.
+
+## 2026-09-04T19:00Z — main agent (Fable): screen 2 launched (strength x passive x weight)
+
+- w100 harvest (41 it): same 12 pinned coordinates and same ~0.1 rms torque
+  controls as w=50 — pricing beyond 50 changes nothing; the mechanism is
+  bounds-as-free-stops, not free-riding.
+- Code (commit "3D running model options"): build_running_model(
+  passive_forces, actuator_strength); RUNNING_ACTUATOR_STRENGTH; predict_
+  gait_3d rescales guess torque controls (u * 10 / F) so guessed torques
+  are preserved; run_met_legs.py --passive --strength; launch_legs.ps1
+  -Passive -Strength; screen_barrier.py start=/passive=/strength= keys.
+  tests/test_model3d_actuators.py (4 pass).
+- Launched 12:58, 16 threads each, 60 iterations, from
+  screen/base/solution_screen_base.sto: str50 (strength, w=50),
+  strpas50 (strength + passive, w=50), str20, strpas20. Monitor:
+  10-min heartbeats. Decision rule: fewest pinned coordinates and
+  falling inf_pr; then production legs via launch_legs.ps1 -Strength
+  [-Passive] from the winner's solution.
