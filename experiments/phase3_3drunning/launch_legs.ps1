@@ -53,5 +53,6 @@ $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }
 $p = Start-Process -FilePath $py -ArgumentList $args -WorkingDirectory $root `
     -RedirectStandardOutput $out -RedirectStandardError $err -WindowStyle Hidden -PassThru
-"launched shim PID $($p.Id) at $(Get-Date -Format HH:mm:ss): threads=$Threads start=$(Split-Path -Leaf $startPath) w=$TorqueWeight legs=$MaxLegs x $LegIters mesh=$Mesh passive=$Passive strength=$Strength"
+"launched shim PID $($p.Id) at $(Get-Date -Format HH:mm:ss): threads=$Threads start=$(Split-Path -Leaf $startPath) w=$TorqueWeight legs=$MaxLegs x $LegIters mesh=$Mesh passive=$Passive strength=$Strength power=$Power on=[$PowerOn]"
+"driver args: $($args -join ' ')"
 "log: $out"

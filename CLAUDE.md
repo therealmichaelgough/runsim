@@ -104,7 +104,17 @@ survey/plan.
   passive and rest on bounds. Use `build_running_model(actuator_strength=
   RUNNING_ACTUATOR_STRENGTH)` (and `passive_forces=True` for restoring
   torques); `predict_gait_3d` rescales a stock-actuator guess's torque
-  controls automatically.
+  controls automatically. With strong actuators, activation-space u^2
+  pricing lets the trunk do the running's work for free (muscle metabolic
+  term collapses to ~1 J/kg/m): price the actuators' MECHANICAL WORK
+  (`torque_power_weight`, squared power per kg per metre; 0.01 on the
+  lumbar actuators gives running-order trunk loads and a physiological
+  whole-body cost). Report COT as Bhargava muscles + actuator |P| at
+  muscle-like efficiency.
+- **Every MocoOutputGoal is a finite-differenced callback.** Thirteen
+  power goals made problem setup 3.5x slower and iterations several times
+  slower; three (lumbar only, `torque_power_actuators=("lumbar",)`) cost
+  ~1.8x. Price only what needs pricing.
 - `analyzeMocoTrajectory` output paths are **regex patterns**
   (`.*total_metabolic_rate`), not literal `/component|output` paths — a
   literal `|` path returns an empty table.
