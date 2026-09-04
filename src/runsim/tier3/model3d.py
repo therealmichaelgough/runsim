@@ -58,6 +58,48 @@ RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
 }
 
 
+#: Passive joint elements for the coordinates that still rest on their
+#: problem bounds once muscle passive forces are on (2026-09-04 screen):
+#: the knees at full extension and the muscle-less elbows.
+#: - knee_limit_*: CoordinateLimitForce engaging below 5 deg flexion (and
+#:   above 120), 5 N.m/deg beyond the limit with a 5-deg transition and
+#:   light damping — the passive knee-extension stop every gait model
+#:   carries (Anderson & Pandy 1999 passive joint moments; Falisse 2019
+#:   exponential limit torques).
+#: - elbow_spring_*: a weak linear spring toward 100 deg flexion,
+#:   0.05 N.m/deg (2.5 N.m at 50 deg away), standing in for the flexor
+#:   tone that keeps runners' elbows at ~110-130 deg (Hamner & Delp 2013);
+#:   the arm swing itself stays free to be predicted.
+JOINT_PASSIVES = dict(
+    knee_lower_deg=5.0, knee_upper_deg=120.0, knee_stiffness_nm_per_deg=5.0,
+    knee_damping=0.5, knee_transition_deg=5.0,
+    elbow_rest_deg=100.0, elbow_stiffness_nm_per_deg=0.05,
+)
+
+
+def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
+    """Add the knee limit forces and elbow posture springs; returns the
+    names of the forces added."""
+    p = {**JOINT_PASSIVES, **(p or {})}
+    added = []
+    for side in ("r", "l"):
+        knee = osim.CoordinateLimitForce(
+            f"knee_angle_{side}", p["knee_upper_deg"], p["knee_stiffness_nm_per_deg"],
+            p["knee_lower_deg"], p["knee_stiffness_nm_per_deg"], p["knee_damping"],
+            p["knee_transition_deg"])
+        knee.setName(f"knee_limit_{side}")
+        model.addForce(knee)
+        added.append(knee.getName())
+        k = p["elbow_stiffness_nm_per_deg"] * 180.0 / 3.141592653589793  # N.m/rad
+        q0 = p["elbow_rest_deg"] * 3.141592653589793 / 180.0
+        spring = osim.ExpressionBasedCoordinateForce(
+            f"elbow_flex_{side}", f"-{k:.6f}*(q-({q0:.6f}))")
+        spring.setName(f"elbow_spring_{side}")
+        model.addForce(spring)
+        added.append(spring.getName())
+    return added
+
+
 def set_actuator_strength(model: osim.Model,
                           strength: dict[str, float]) -> dict[str, float]:
     """Set each CoordinateActuator's optimal force from the first matching
@@ -110,6 +152,7 @@ def build_running_model(
     *,
     passive_forces: bool = False,
     actuator_strength: dict[str, float] | None = None,
+    joint_passives: bool = False,
 ) -> osim.Model:
     """LaiUhlrich2022 -> Moco-ready running model (muscles converted,
     contacts added). Optionally writes the processed model to out_path.
@@ -120,7 +163,9 @@ def build_running_model(
     default, matching the validated tracking/effort solves.
     actuator_strength: optimal forces for the lumbar/arm CoordinateActuators
     by name prefix (see RUNNING_ACTUATOR_STRENGTH); None keeps the model's
-    10 N.m placeholders."""
+    10 N.m placeholders.
+    joint_passives: knee extension limit forces and elbow posture springs
+    (see JOINT_PASSIVES / add_joint_passives)."""
     processor = osim.ModelProcessor(str(model_path))
     processor.append(osim.ModOpReplaceMusclesWithDeGrooteFregly2016())
     processor.append(osim.ModOpIgnoreTendonCompliance())
@@ -130,6 +175,8 @@ def build_running_model(
     model = processor.process()
     if actuator_strength:
         set_actuator_strength(model, actuator_strength)
+    if joint_passives:
+        add_joint_passives(model)
     add_running_contacts(model)
     model.finalizeConnections()
     if out_path is not None:

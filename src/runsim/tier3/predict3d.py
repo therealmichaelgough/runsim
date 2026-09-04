@@ -43,6 +43,7 @@ class GaitPrediction3D:
     actuator_strength: dict[str, float] | None = None
     torque_power_weight: float | None = None
     torque_power_actuators: tuple[str, ...] | None = None
+    joint_passives: bool = False
 
 
 STOCK_ACTUATOR_STRENGTH = 10.0  # the model's placeholder optimal force, N.m
@@ -227,6 +228,7 @@ def build_running_study(
     actuator_strength: dict[str, float] | None = None,
     torque_power_weight: float | None = None,
     torque_power_actuators: tuple[str, ...] | None = None,
+    joint_passives: bool = False,
 ) -> tuple[osim.MocoStudy, osim.Model, str]:
     """Assemble the predictive problem without solving it: returns the
     study, the (metabolics-equipped) model, and the solution label.
@@ -236,7 +238,8 @@ def build_running_study(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     label = label or gait_label(speed_ms, grade, objective)
-    build = dict(passive_forces=passive_forces, actuator_strength=actuator_strength)
+    build = dict(passive_forces=passive_forces, actuator_strength=actuator_strength,
+                 joint_passives=joint_passives)
 
     study = osim.MocoStudy()
     study.setName(f"gaitPrediction3D_{label}")
@@ -331,6 +334,7 @@ def predict_gait_3d(
     actuator_strength: dict[str, float] | None = None,
     torque_power_weight: float | None = None,
     torque_power_actuators: tuple[str, ...] | None = None,
+    joint_passives: bool = False,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
@@ -352,7 +356,8 @@ def predict_gait_3d(
     finite-differenced goal callback in the transcription, so pricing only
     the trunk ("lumbar",) where the free work occurs is much cheaper than
     pricing all thirteen.
-    passive_forces / actuator_strength: see model3d.build_running_model.
+    passive_forces / actuator_strength / joint_passives: see
+    model3d.build_running_model.
     The guess's torque controls are rescaled from the strengths it was
     solved with (its `.strength.json` sidecar; stock 10 N.m if none) so
     the guessed torques are unchanged; every solution gets a sidecar."""
@@ -360,7 +365,8 @@ def predict_gait_3d(
     study, model, label = build_running_study(
         speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
         max_iterations, label, objective, torque_weight, passive_forces,
-        actuator_strength, torque_power_weight, torque_power_actuators)
+        actuator_strength, torque_power_weight, torque_power_actuators,
+        joint_passives)
 
     t0 = time.time()
     solution = study.solve()
@@ -397,4 +403,5 @@ def predict_gait_3d(
         actuator_strength=dict(actuator_strength) if actuator_strength else None,
         torque_power_weight=torque_power_weight,
         torque_power_actuators=tuple(torque_power_actuators) if torque_power_actuators else None,
+        joint_passives=joint_passives,
     )

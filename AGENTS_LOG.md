@@ -1257,3 +1257,22 @@ converged 3D solve lands.
   no muscle to hold them (Hamner runners ~110-130 deg). Candidate fix for
   a later leg: passive elbow stiffness toward ~100 deg (CoordinateLimit-
   Force / ExpressionBasedCoordinateForce) rather than a tighter bound.
+
+## 2026-09-04T22:30Z — main agent (Fable): joint passives (knee limits + elbow springs) built; screen lpj
+
+- met_legs7 leg 1 at ~47 s/iter (64 threads); iteration ~80 by 16:23,
+  obj 2.77, inf ~20, alpha 0.02-0.09, mu 1e-7.6 — the stall signature
+  re-forming with the 6 still-pinned coordinates (knees at 0 deg, elbows
+  at 30 deg). Leg cap 300 -> verdict ~19:15.
+- model3d.add_joint_passives / build_running_model(joint_passives=True):
+  knee_limit_{r,l} CoordinateLimitForce (5..120 deg, 5 N.m/deg, 5-deg
+  transition, damping 0.5; Anderson & Pandy 1999 / Falisse 2019 limit
+  torques) and elbow_spring_{r,l} ExpressionBasedCoordinateForce toward
+  100 deg at 0.05 N.m/deg (flexor tone stand-in; runners' elbows 110-130
+  deg, Hamner & Delp 2013). predict_gait_3d(joint_passives=), driver
+  --joints, launcher -Joints, screen joints=1. tests/test_model3d_joint_
+  passives.py (spring torque sign/magnitude, limit parameters).
+- Screen lpj launched 16:27 (16 threads, 40 it) from lp01pas's iterate with
+  passive + strength + lumbar power 0.01 + joints. Decision at the leg-1
+  boundary: if knees/elbows come off their bounds without harming COT or
+  cadence, restart the driver from met_leg01.sto with -Joints.

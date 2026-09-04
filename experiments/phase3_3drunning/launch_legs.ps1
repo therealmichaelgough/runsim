@@ -23,6 +23,7 @@ param(
     [int]$Mesh = 50,
     [switch]$Passive,
     [switch]$Strength,
+    [switch]$Joints,   # knee limit forces + elbow posture springs
     [double]$Power = -1,   # >= 0: price squared torque-actuator power at this weight
     [string]$PowerOn = "",  # e.g. "lumbar" — actuator name prefixes to power-price (all if empty)
     [string[]]$IpoptOpts = @()
@@ -46,6 +47,7 @@ $py = Join-Path $root ".venv\Scripts\python.exe"
 $args = @("experiments\phase3_3drunning\run_met_legs.py", $startPath, "$LegIters", "$MaxLegs", "$TorqueWeight", "$Mesh")
 if ($Passive) { $args += "--passive" }
 if ($Strength) { $args += "--strength" }
+if ($Joints) { $args += "--joints" }
 if ($Power -ge 0) { $args += "--power=$Power" }
 if ($PowerOn -ne "") { $args += "--power-on=$PowerOn" }
 $out = Join-Path $d3 "$LogName.log"
