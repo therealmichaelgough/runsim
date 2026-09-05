@@ -1668,3 +1668,15 @@ converged 3D solve lands.
   launcher -Tol. Plan: converge at 1e-2 (the dips reach 0.02-0.05, the
   objective is converged to 4 digits), then attempt a 1e-3 polish leg;
   report the achieved tolerance honestly.
+
+## 2026-09-05T19:15Z — main agent (Fable): violation floors at ~0.05; mesh refined to 75 intervals
+
+- met_legs19 leg 1 (tol 1e-2, 30 it): status Maximum_Iterations_Exceeded,
+  obj 3.4045; the dip bottomed at inf 0.052 (it 20) and 0.052 (it 26) —
+  the same floor as the 1e-3 legs (0.045). Objective converged to 4
+  digits; the max-norm defect will not go below ~0.05 on 50 mesh
+  intervals (13 ms/interval vs a ~10 ms heel-strike transient).
+- met_legs20 launched 12:13: mesh 75, tol 1e-2, 40-it legs x 30, tag
+  v12m75, from met_v12t2_leg01.sto (Moco interpolates the guess onto the
+  finer mesh). Monitors report each leg's minimum violation. Fallback if
+  the floor persists: accept the iterate at a documented 5e-2 tolerance.
