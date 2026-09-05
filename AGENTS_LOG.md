@@ -1638,3 +1638,16 @@ converged 3D solve lands.
   muscle COT 2.895; banked (met_leg02.sto). Leg 3 running. Feasibility
   falls ~1.5x per 100-iteration leg — formal convergence may need 10+
   legs (~85 min each); letting it run under the guards.
+
+## 2026-09-05T18:10Z — main agent (Fable): v12 legs 3-4; switch to 30-iteration legs to bank the feasibility dips
+
+- v12 leg 3 (100 it): obj 3.4118 -> 3.4057, banked (met_leg03.sto). Its
+  trace: after the reset the violation dives to 0.021 at it ~22 (leg 2
+  dipped to ~0.1), then the filter trades feasibility for objective and
+  it climbs back to 0.54 by the cap. The best iterates occur ~25
+  iterations into a leg, not at its end.
+- Leg 4 was stopped at its first callback (my sentinel deletion landed at
+  its start, not in a dip — harmless) and the driver restarted as
+  met_legs18 with 30-iteration legs x 60 from met_leg03.sto: bank each
+  dip, reset from it, converge geometrically. Guard + convergence hand-off
+  monitors re-armed on met_legs18.
