@@ -1699,3 +1699,38 @@ converged 3D solve lands.
   solution_p3d_v3_gp0_met_v12.sto (+ grf) and runs finalize_met_solution.
   README/CLAUDE.md will state the achieved tolerance (max constraint
   violation ~5e-2, objective 3.40 +- 0.005).
+
+## 2026-09-05T22:20Z — main agent (Fable): the blocker is COMPLEMENTARITY at saturated muscle controls; finalizing the v12 iterate
+
+- met_legs21 leg 1 (tol 1e-1, mesh 75): Maximum_Iterations_Exceeded at 40
+  with obj 3.3943; IPOPT's termination block: dual infeasibility 0.047,
+  constraint violation 2.8e-4 SCALED / 0.037 unscaled, complementarity
+  0.50 -> overall NLP error 0.50. Every metabolic leg's "stall" was this:
+  the objective and feasibility converge, the complementarity criterion
+  never does. 21 muscle controls saturate at 1.0 (soleus, gastrocnemii,
+  hamstrings, tibant, iliacus, addlong, fhl, glmed1, both sides): a huge
+  bound multiplier on a saturated control keeps slack x multiplier ~0.5.
+  Physically: the metabolic gait is muscle-strength-limited at 3 m/s.
+- Finalized met_v12final_leg01.sto as solution_p3d_v3_gp0_met_v12.sto
+  (+ sidecar, grf_p3d_v3_gp0_met_v12.sto): objective 3.394 (converged to
+  4 digits across legs), scaled violation 3e-4, unscaled max defect
+  0.037, 2.97 Hz, 253 ms contact, 2.4 BW, muscle COT 2.9 J/kg/m.
+  finalize_met_solution.py run (validation figure, arm momentum, stations).
+- One more trial, met_legs22 (bound_relax_factor 0, tol 1e-1, mesh 75,
+  2 x 40 it) from that iterate, to see whether the complementarity
+  criterion clears without relaxation; the finalized iterate stands
+  either way.
+- VALIDATION of solution_p3d_v3_gp0_met_v12.sto (finalize_met_solution):
+  arm angular momentum amplitude 1.03x measured (effort gait 0.21x),
+  corr(arms, legs) -0.97 (measured -0.99; effort +0.57), phase lag -1%
+  cycle: the metabolic objective RESTORES human arm swing. Legs' momentum
+  0.50x measured (low knee lift), uncancelled 1.40 (measured 0.24).
+  Kinematics vs Hamner RRA: hip flexion RMS 27.8, knee 18.5, ankle 20.5,
+  pelvis list 2.5, lumbar ext 9.9, arm flex 49, elbows 47-64 deg (posture
+  offset). 2.99 Hz, 253 ms, 2.42 BW. Figures: experiments/
+  phase3_met3d_validation.png, phase3_arm_momentum.png; stations
+  scripts/met3d_stations.json. README ledger milestone 2 written; UE
+  export GAITS_3D gains the metabolic gait.
+- met_legs22 (bound_relax_factor 0 trial) relaunched via the launcher +
+  an appended ipopt.opt line (the nested PowerShell call flattened a
+  two-element -IpoptOpts array into -EffortBlend).

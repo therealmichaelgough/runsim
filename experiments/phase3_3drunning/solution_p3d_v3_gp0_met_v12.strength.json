@@ -1,0 +1,15 @@
+{
+ "lumbar_ext": 200.0,
+ "lumbar_bend": 150.0,
+ "lumbar_rot": 100.0,
+ "shoulder_flex_r": 60.0,
+ "shoulder_add_r": 60.0,
+ "shoulder_rot_r": 30.0,
+ "elbow_flex_r": 40.0,
+ "pro_sup_r": 10.0,
+ "shoulder_flex_l": 60.0,
+ "shoulder_add_l": 60.0,
+ "shoulder_rot_l": 30.0,
+ "elbow_flex_l": 40.0,
+ "pro_sup_l": 10.0
+}

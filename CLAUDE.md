@@ -146,6 +146,16 @@ survey/plan.
   solver crawls instead of diverging; it does not make the crawl fast.
   `mu_target`, `mu_min`, `mu_strategy monotone` and `mu_oracle loqo`
   all failed (measured).
+- **When a Moco solve "stalls" with the objective converged, read IPOPT's
+  termination block, not just inf_pr.** The 3D metabolic solve sat at a
+  scaled constraint violation of 3e-4 and dual infeasibility 0.05 while
+  the COMPLEMENTARITY stayed at 0.5 (overall NLP error 0.5): 21 muscle
+  excitations saturate at 1.0 and their huge bound multipliers keep
+  slack x multiplier at 0.5. Neither tolerance, mesh (50 vs 75), barrier
+  option nor leg length changes that; the iterate is the answer and the
+  saturation is a physical finding (strength-limited gait). Finalize
+  such an iterate with `scripts/finalize_met_solution.py` and state the
+  achieved tolerances.
 - **The leg driver's working solution now carries a `_legs` suffix**:
   its default effort label once overwrote the validated Sep-2 effort gait
   `solution_p3d_v3_gp0.sto` (restored from git). Never let a driver write

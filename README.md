@@ -72,8 +72,31 @@ read it before starting, log long-running jobs and findings there.
   Known bias: peak vGRF 3.1 BW (~30% high — contact-sphere impact
   artifact, as in 2D). Hard-won formulation rules in CLAUDE.md (ground
   the tracking reference INTO the floor; homotope speed from the guess's
-  effective value; watch IPOPT restoration). **Arm-swing angular-momentum validation done** (`scripts/analyze_arm_momentum.py`): the measured reference reproduces Hamner & Delp 2013 (arms cancel ~76% of the legs' vertical angular momentum, corr -0.99); the tracked seed preserves the mechanism (45% cancellation); the pure-effort predictive gait LOSES it (arm amplitude 0.21x measured, correlation flips positive) - minimum effort alone does not produce human arm swing (`experiments/phase3_arm_momentum.png`). Next: metabolic objective in
-  3D (running - does it restore arm swing?), speed/grade chains.
+  effective value; watch IPOPT restoration). **Arm-swing angular-momentum validation done** (`scripts/analyze_arm_momentum.py`): the measured reference reproduces Hamner & Delp 2013 (arms cancel ~76% of the legs' vertical angular momentum, corr -0.99); the tracked seed preserves the mechanism (45% cancellation); the pure-effort predictive gait LOSES it (arm amplitude 0.21x measured, correlation flips positive) - minimum effort alone does not produce human arm swing (`experiments/phase3_arm_momentum.png`).
+- **Phase 3 finale (3D) — milestone 2: the metabolic objective restores
+  arm swing.** `predict_gait_3d(objective="metabolic")` on formulation v12
+  (`model3d.build_running_model(actuator_strength=..., joint_passives=True)`:
+  literature-strength trunk/arm actuators priced per (N·m)² with the lumbar
+  actuators' mechanical work priced, passive fiber forces off, end-range
+  limit forces and physiological passive damping for every muscle-less or
+  bound-pinned joint; IPOPT `never-monotone-mode`; 75 mesh intervals;
+  `experiments/phase3_3drunning/solution_p3d_v3_gp0_met_v12.sto`). The
+  arm angular-momentum amplitude is **1.03× measured** (effort gait 0.21×),
+  arms counter-rotate against the legs with **corr −0.97** (measured −0.99;
+  effort gait +0.57), phase lag −1% cycle — the counter-rotation mechanism
+  of Hamner & Delp 2013 emerges from energetics alone. Gait: 2.99 Hz,
+  253 ms contact, 27% flight, 2.42 BW, muscle metabolic cost 2.9 J/kg/m
+  (trunk/arm actuator work adds ~0.2). Convergence, stated honestly: the
+  objective is converged to four digits (3.394 ± 0.005 across legs) and the
+  dynamics to a scaled constraint violation of 3e-4 (unscaled max defect
+  0.04), but IPOPT's KKT complementarity stays at 0.5 because 21 muscle
+  excitations saturate at 1.0 — the gait is muscle-strength-limited at
+  3 m/s. Known differences from Hamner: low swing-leg knee flexion (~45° vs
+  ~85°; legs' angular momentum 0.50× measured), straighter elbows
+  (38–117°), hip-flexion RMS 28° (`experiments/phase3_met3d_validation.png`).
+  Twelve formulation rounds and the solver pathology they exposed are in
+  AGENTS_LOG (2026-09-04/05) and CLAUDE.md. Next: speed/grade chains with
+  this formulation; knee-lift and arm-posture validation.
 
 ## Architecture (planned)
 

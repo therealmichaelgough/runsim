@@ -160,6 +160,9 @@ GAITS_3D: list[tuple[str, float, float, float | None]] = [
     ("experiments/phase3_3drunning/seed3d_tracking.sto", 3.0, 0.0, None),
     # converged fully-predictive gait (Phase-3 finale milestone 1)
     ("experiments/phase3_3drunning/solution_p3d_v3_gp0.sto", 3.0, 0.0, None),
+    # metabolic-objective predictive gait, formulation v12 (Phase-3 finale
+    # milestone 2, 2026-09-05): restores human arm swing; muscle COT 2.9 J/kg/m
+    ("experiments/phase3_3drunning/solution_p3d_v3_gp0_met_v12.sto", 3.0, 0.0, 2.9),
 ]
 
 
