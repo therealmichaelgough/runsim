@@ -1458,3 +1458,9 @@ converged 3D solve lands.
   started from the previous, so iterates stay near-feasible.
 - Code: effort objective with actuator_strength now weights each torque
   actuator's cubed control by (F/10)^3 (test added).
+- 22:45: effort_blend continuation support committed (cbbacf8): metabolic
+  problem keeps a cubed effort term at weight W (driver --effort-blend=W,
+  launcher -EffortBlend, screen effort_blend=). Stage A screen effv6
+  (effort objective, v6 model, from solution_p3d_v3_gp0.sto) started
+  22:35: iteration 0 inf 5.8e4 — the stock-model effort gait is far from
+  feasible under passive fibers + joint passives; watching its recovery.
