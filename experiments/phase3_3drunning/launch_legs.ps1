@@ -28,6 +28,7 @@ param(
     [string]$PowerOn = "",  # e.g. "lumbar" — actuator name prefixes to power-price (all if empty)
     [double]$TorquePrice = -1,  # >= 0: price torque^2 at this per (N.m)^2 for every actuator
     [double]$EffortBlend = -1,  # >= 0: keep a cubed-control effort term at this weight (continuation)
+    [string]$Objective = "metabolic",  # or "effort" (continuation Stage A)
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -54,6 +55,7 @@ if ($Power -ge 0) { $args += "--power=$Power" }
 if ($PowerOn -ne "") { $args += "--power-on=$PowerOn" }
 if ($TorquePrice -ge 0) { $args += "--torque-price=$TorquePrice" }
 if ($EffortBlend -ge 0) { $args += "--effort-blend=$EffortBlend" }
+if ($Objective -ne "metabolic") { $args += "--objective=$Objective" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }

@@ -36,7 +36,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
          torque_power_actuators: tuple[str, ...] | None = None,
          joint_passives: bool = False,
          torque_price_per_nm2: float | None = None,
-         effort_blend: float | None = None) -> None:
+         effort_blend: float | None = None,
+         objective: str = "metabolic") -> None:
     guess = Path(start) if Path(start).is_absolute() else HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
@@ -46,7 +47,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     # (same torque weight, passive-force, actuator-strength and power-price
     # settings — objectives across formulations are not comparable), so
     # leg 1 is judged against prior legs of its own kind, or ungated if none
-    formulation = dict(torque_weight=torque_weight, passive_forces=passive_forces,
+    formulation = dict(objective_kind=objective,
+                       torque_weight=torque_weight, passive_forces=passive_forces,
                        actuator_strength=strength,
                        torque_power_weight=torque_power_weight,
                        torque_power_actuators=list(torque_power_actuators) if torque_power_actuators else None,
@@ -66,7 +68,7 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     for leg in range(1, max_legs + 1):
         t0 = time.time()
         r = predict_gait_3d(3.0, out_dir=HERE, guess_path=guess,
-                            max_iterations=leg_iters, objective="metabolic",
+                            max_iterations=leg_iters, objective=objective,
                             torque_weight=torque_weight,
                             mesh_intervals=mesh_intervals,
                             passive_forces=passive_forces,
@@ -124,6 +126,7 @@ if __name__ == "__main__":
     #                 [--joints]  (knee limit forces + elbow posture springs)
     #                 [--torque-price=P]  (torque^2 price per (N.m)^2, all actuators)
     #                 [--effort-blend=W]  (cubed effort term kept at weight W: continuation)
+    #                 [--objective=effort]  (Stage A of the continuation: effort objective)
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     power = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--power=")), None)
@@ -133,6 +136,8 @@ if __name__ == "__main__":
                          if a.startswith("--torque-price=")), None)
     effort_blend = next((float(a.split("=", 1)[1]) for a in flags
                          if a.startswith("--effort-blend=")), None)
+    objective = next((a.split("=", 1)[1] for a in flags
+                      if a.startswith("--objective=")), "metabolic")
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
@@ -142,4 +147,4 @@ if __name__ == "__main__":
          actuator_strength="--strength" in flags,
          torque_power_weight=power, torque_power_actuators=power_on,
          joint_passives="--joints" in flags, torque_price_per_nm2=torque_price,
-         effort_blend=effort_blend)
+         effort_blend=effort_blend, objective=objective)
