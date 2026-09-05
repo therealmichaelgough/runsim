@@ -45,9 +45,33 @@ class GaitPrediction3D:
     torque_power_actuators: tuple[str, ...] | None = None
     joint_passives: bool = False
     torque_price_per_nm2: float | None = None
+    effort_blend: float | None = None
 
 
 STOCK_ACTUATOR_STRENGTH = 10.0  # the model's placeholder optimal force, N.m
+
+
+def _cubed_effort_goal(init: osim.Model, weight: float, actuator_strength) -> osim.MocoControlGoal:
+    """The validated effort objective: cubed controls / displacement at
+    `weight`, torque actuators priced at the stock (F/10)^3 control scale
+    when the model carries literature-strength actuators."""
+    effort = osim.MocoControlGoal("effort" if weight == 10 else "effort_blend", weight)
+    effort.setExponent(3)
+    effort.setDivideByDisplacement(True)
+    if actuator_strength:
+        # cubed-control effort prices activation; with literature-strength
+        # actuators that makes 20 N.m of trunk torque cost 0.001. Price the
+        # torque actuators' CONTROLS as if they were still the stock 10 N.m
+        # units (weight (F/10)^3): the validated effort gait's pricing scale,
+        # independent of the actuator strength chosen for the model.
+        fs = init.getForceSet()
+        for i in range(fs.getSize()):
+            act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+            if act is not None:
+                effort.setWeightForControl(
+                    act.getAbsolutePathString(),
+                    (act.getOptimalForce() / STOCK_ACTUATOR_STRENGTH) ** 3)
+    return effort
 
 
 def strength_sidecar(solution_path: Path | str) -> Path:
@@ -231,6 +255,7 @@ def build_running_study(
     torque_power_actuators: tuple[str, ...] | None = None,
     joint_passives: bool = False,
     torque_price_per_nm2: float | None = None,
+    effort_blend: float | None = None,
 ) -> tuple[osim.MocoStudy, osim.Model, str]:
     """Assemble the predictive problem without solving it: returns the
     study, the (metabolics-equipped) model, and the solution label.
@@ -303,24 +328,14 @@ def build_running_study(
                     power.setDivideByMass(True)
                     power.setDivideByDisplacement(True)
                     problem.addGoal(power)
+        if effort_blend:
+            # continuation from the effort gait: keep a cubed-control effort
+            # term at this weight alongside the metabolic terms and lower it
+            # leg by leg (10 -> 0), so iterates stay near-feasible instead
+            # of restarting from large violations after an abrupt switch
+            problem.addGoal(_cubed_effort_goal(init, effort_blend, actuator_strength))
     else:
-        effort = osim.MocoControlGoal("effort", 10)
-        effort.setExponent(3)
-        effort.setDivideByDisplacement(True)
-        if actuator_strength:
-            # cubed-control effort prices activation; with literature-strength
-            # actuators that makes 20 N.m of trunk torque cost 0.001. Price the
-            # torque actuators' CONTROLS as if they were still the stock 10 N.m
-            # units (weight (F/10)^3): the validated effort gait's pricing scale,
-            # independent of the actuator strength chosen for the model.
-            fs = init.getForceSet()
-            for i in range(fs.getSize()):
-                act = osim.CoordinateActuator.safeDownCast(fs.get(i))
-                if act is not None:
-                    effort.setWeightForControl(
-                        act.getAbsolutePathString(),
-                        (act.getOptimalForce() / STOCK_ACTUATOR_STRENGTH) ** 3)
-        problem.addGoal(effort)
+        problem.addGoal(_cubed_effort_goal(init, 10, actuator_strength))
 
     # full-cycle duration bracket around the seed's 0.715 s
     problem.setTimeBounds(0, [0.4, 1.0])
@@ -355,6 +370,7 @@ def predict_gait_3d(
     torque_power_actuators: tuple[str, ...] | None = None,
     joint_passives: bool = False,
     torque_price_per_nm2: float | None = None,
+    effort_blend: float | None = None,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
@@ -370,6 +386,10 @@ def predict_gait_3d(
     actuator's 5-20 N.m of holding torque is nearly free and the arms and
     trunk rock across their bounds; 0.006 per (N.m)^2 makes ~25 N.m rms of
     trunk torque cost ~0.4 J/kg/m, a tenth of running's metabolic cost.
+    effort_blend: metabolic objective only — weight of an additional
+    cubed-control effort term (the effort objective's own, 10 = full),
+    for continuation from a converged effort gait: solve at 10, then 3, 1,
+    0.3, 0, each leg warm-started from the last.
     torque_power_weight: metabolic objective only — prices the ideal
     torque actuators' MECHANICAL WORK, which Bhargava (muscles only)
     leaves free: sum over actuators of squared power, per kg per metre,
@@ -392,7 +412,7 @@ def predict_gait_3d(
         speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
         max_iterations, label, objective, torque_weight, passive_forces,
         actuator_strength, torque_power_weight, torque_power_actuators,
-        joint_passives, torque_price_per_nm2)
+        joint_passives, torque_price_per_nm2, effort_blend)
 
     t0 = time.time()
     solution = study.solve()
@@ -430,4 +450,5 @@ def predict_gait_3d(
         torque_power_weight=torque_power_weight,
         torque_power_actuators=tuple(torque_power_actuators) if torque_power_actuators else None,
         joint_passives=joint_passives, torque_price_per_nm2=torque_price_per_nm2,
+        effort_blend=effort_blend,
     )

@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 MASS = 75.16
 FORMULATION_KEYS = ("start", "passive", "strength", "power", "power_on", "joints", "torque_price",
-                    "objective")
+                    "objective", "effort_blend")
 
 
 def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> None:
@@ -56,14 +56,17 @@ def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> No
     joints = form.get("joints", "0") not in ("0", "", "false", "no")
     torque_price = float(form["torque_price"]) if "torque_price" in form else None
     objective = form.get("objective", "metabolic")
+    effort_blend = float(form["effort_blend"]) if "effort_blend" in form else None
     r = predict_gait_3d(3.0, out_dir=run, guess_path=HERE / start,
                         max_iterations=max_iters, objective=objective,
                         torque_weight=torque_weight, label=f"screen_{name}",
                         passive_forces=passive, actuator_strength=strength,
                         torque_power_weight=power, torque_power_actuators=power_on,
-                        joint_passives=joints, torque_price_per_nm2=torque_price)
+                        joint_passives=joints, torque_price_per_nm2=torque_price,
+                        effort_blend=effort_blend)
     stats = solution_summary(r.grf_path, mass_kg=MASS)
-    stats.update(name=name, objective_kind=objective, torque_weight=torque_weight, start=start,
+    stats.update(name=name, objective_kind=objective, effort_blend=effort_blend,
+                 torque_weight=torque_weight, start=start,
                  passive_forces=passive, actuator_strength=strength,
                  torque_power_weight=power, torque_power_actuators=power_on,
                  joint_passives=joints, torque_price_per_nm2=torque_price,
