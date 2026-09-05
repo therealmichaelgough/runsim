@@ -1307,3 +1307,19 @@ converged 3D solve lands.
 - lpj (knees+elbows only, it 18) killed 17:28 — superseded. Next: screen
   lpj2 with the full set from met_leg01.sto; leg 2 of met_legs7 continues
   meanwhile.
+
+## 2026-09-05T00:30Z — main agent (Fable): met_legs7 leg 2 diverged; production restarted with joint passives (met_legs8)
+
+- met_legs7 leg 2 (barrier reset from met_leg01): reached inf 1.26 at
+  it 52 (best feasibility yet, obj 2.735), then the adaptive globalization
+  fell back (mu 1e-4.5 -> 1e-2.5), eight iterations of alpha 1e-5..1e-3,
+  obj 2.735 -> 2.865, inf 1.3 -> 24.5. Same signature as the floor runs;
+  unrecoverable. Driver KILLED at 18:25 (a graceful stop would have
+  banked the degraded iterate — the 1.5x gate is too loose; now 1.05x).
+- met_legs8 launched 18:25 from met_leg01.sto with -Joints (full joint
+  passives) -Passive -Strength -Power 0.01 -PowerOn lumbar, 64 threads —
+  the formulation screen lpj2 is testing (harvest ~18:45); if lpj2 says
+  the joints stay pinned or the gait degrades, met_legs8 is killed.
+- Monitor for met_legs8 adds a DIVERGENCE guard: 8 consecutive alpha_pr
+  < 2e-3 with a rising objective, or 8 restoration iterations -> driver
+  killed (not banked), relaunch from the last banked leg.

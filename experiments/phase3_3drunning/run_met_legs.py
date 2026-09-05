@@ -79,8 +79,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                      mesh_intervals=mesh_intervals,
                      solve_min=round(r.solve_time_s / 60, 2))
 
-        # health gate: a degraded leg is not chained
-        if prev_obj is not None and r.objective > prev_obj * 1.5:
+        # health gate: a degraded leg is not chained. 5%: a leg that ends
+        # worse than the best prior one of its kind was in a collapse
+        # (2026-09-04, met_legs7 leg 2: obj 2.74 -> 2.86 with rising
+        # violation), and chaining from it compounds the damage.
+        if prev_obj is not None and r.objective > prev_obj * 1.05:
             stats["verdict"] = "DEGRADED - discarded, re-running from prior"
             log.append(stats)
             LOG.write_text(json.dumps(log, indent=2))
