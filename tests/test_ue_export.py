@@ -152,7 +152,7 @@ def test_json_shape(data):
     # 14 2D gaits + 3 3D arm sources (tracking seed, effort gait, metabolic v12)
     assert len(data["gaits"]) == 17
     assert sum(g["source"] == "2d" for g in data["gaits"]) == 14
-    assert sum(g["source"] == "3d" for g in data["gaits"]) == 2
+    assert sum(g["source"] == "3d" for g in data["gaits"]) == 3
     for g in data["gaits"]:
         assert len(g["frames"]) == data["nframes"]
         assert all(len(f) == 7 * len(g["bodies"]) for f in g["frames"])
