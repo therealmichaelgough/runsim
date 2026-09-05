@@ -1464,3 +1464,9 @@ converged 3D solve lands.
   (effort objective, v6 model, from solution_p3d_v3_gp0.sto) started
   22:35: iteration 0 inf 5.8e4 — the stock-model effort gait is far from
   feasible under passive fibers + joint passives; watching its recovery.
+- 22:50: effv6 killed at it 6 — the stock-model effort gait is not a
+  usable start for the v6 model (inf 5.8e4 -> 4e4, cubed effort objective
+  exploding to 105 under the (F/10)^3 actuator weights). effv6b launched
+  from met_leg01.sto (the v6 iterate, inf ~27 under this model) with the
+  effort objective; 16 threads, 30 it. Driver now takes --objective=effort
+  (265106c) for Stage A production legs if the screen re-converges.
