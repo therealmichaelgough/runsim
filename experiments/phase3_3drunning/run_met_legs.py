@@ -34,7 +34,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
          actuator_strength: bool = False,
          torque_power_weight: float | None = None,
          torque_power_actuators: tuple[str, ...] | None = None,
-         joint_passives: bool = False) -> None:
+         joint_passives: bool = False,
+         torque_price_per_nm2: float | None = None) -> None:
     guess = Path(start) if Path(start).is_absolute() else HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
@@ -48,7 +49,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                        actuator_strength=strength,
                        torque_power_weight=torque_power_weight,
                        torque_power_actuators=list(torque_power_actuators) if torque_power_actuators else None,
-                       joint_passives=joint_passives)
+                       joint_passives=joint_passives,
+                       torque_price_per_nm2=torque_price_per_nm2)
     prev_objs = [r["objective"] for r in log
                  if r.get("speed") == 3.0 and "objective" in r
                  and all(r.get(k) == v for k, v in formulation.items())]
@@ -69,7 +71,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                             actuator_strength=strength,
                             torque_power_weight=torque_power_weight,
                             torque_power_actuators=torque_power_actuators,
-                            joint_passives=joint_passives)
+                            joint_passives=joint_passives,
+                            torque_price_per_nm2=torque_price_per_nm2)
         stats = solution_summary(r.grf_path, mass_kg=MASS)
         stats.update(speed=3.0, grade=0.0, leg=leg, success=r.success,
                      objective=r.objective,
@@ -111,11 +114,14 @@ if __name__ == "__main__":
     # run_met_legs.py [start.sto] [leg_iters] [max_legs] [torque_weight] [mesh]
     #                 [--passive] [--strength] [--power=W] [--power-on=lumbar,...]
     #                 [--joints]  (knee limit forces + elbow posture springs)
+    #                 [--torque-price=P]  (torque^2 price per (N.m)^2, all actuators)
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     power = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--power=")), None)
     power_on = next((tuple(a.split("=", 1)[1].split(",")) for a in flags
                      if a.startswith("--power-on=")), None)
+    torque_price = next((float(a.split("=", 1)[1]) for a in flags
+                         if a.startswith("--torque-price=")), None)
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
@@ -124,4 +130,4 @@ if __name__ == "__main__":
          passive_forces="--passive" in flags,
          actuator_strength="--strength" in flags,
          torque_power_weight=power, torque_power_actuators=power_on,
-         joint_passives="--joints" in flags)
+         joint_passives="--joints" in flags, torque_price_per_nm2=torque_price)

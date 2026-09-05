@@ -26,6 +26,7 @@ param(
     [switch]$Joints,   # knee limit forces + elbow posture springs
     [double]$Power = -1,   # >= 0: price squared torque-actuator power at this weight
     [string]$PowerOn = "",  # e.g. "lumbar" — actuator name prefixes to power-price (all if empty)
+    [double]$TorquePrice = -1,  # >= 0: price torque^2 at this per (N.m)^2 for every actuator
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -50,6 +51,7 @@ if ($Strength) { $args += "--strength" }
 if ($Joints) { $args += "--joints" }
 if ($Power -ge 0) { $args += "--power=$Power" }
 if ($PowerOn -ne "") { $args += "--power-on=$PowerOn" }
+if ($TorquePrice -ge 0) { $args += "--torque-price=$TorquePrice" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }

@@ -44,18 +44,28 @@ def test_hip_rotation_limit_parameters(model):
 
 
 def test_lumbar_spring_stiffness_and_damping(model):
-    """1 N.m/deg toward neutral: 10 deg of extension gives -10 N.m; a
-    speed of 100 deg/s at neutral gives -2 N.m of damping."""
+    """2 N.m/deg toward neutral: 10 deg of extension gives -20 N.m; a
+    speed of 100 deg/s at neutral gives -2 N.m of damping; rotation is
+    the softer 1 N.m/deg."""
     state = model.initSystem()
+    k = JOINT_PASSIVES["lumbar_stiffness_nm_per_deg"]
     coord = model.getCoordinateSet().get("lumbar_extension")
     spring = osim.ExpressionBasedCoordinateForce.safeDownCast(
         model.getForceSet().get("lumbar_spring_extension"))
     coord.setValue(state, math.radians(10.0)); coord.setSpeedValue(state, 0.0)
     model.realizeDynamics(state)
-    assert spring.calcExpressionForce(state) == pytest.approx(-10.0, rel=1e-3)
+    assert spring.calcExpressionForce(state) == pytest.approx(-10.0 * k, rel=1e-3)
     coord.setValue(state, 0.0); coord.setSpeedValue(state, math.radians(100.0))
     model.realizeDynamics(state)
-    assert spring.calcExpressionForce(state) == pytest.approx(-2.0, rel=1e-3)
+    assert spring.calcExpressionForce(state) == pytest.approx(
+        -100.0 * JOINT_PASSIVES["lumbar_damping_nm_s_per_deg"], rel=1e-3)
+    rot = osim.ExpressionBasedCoordinateForce.safeDownCast(
+        model.getForceSet().get("lumbar_spring_rotation"))
+    c = model.getCoordinateSet().get("lumbar_rotation")
+    c.setValue(state, math.radians(10.0)); c.setSpeedValue(state, 0.0)
+    model.realizeDynamics(state)
+    assert rot.calcExpressionForce(state) == pytest.approx(
+        -10.0 * JOINT_PASSIVES["lumbar_rot_stiffness_nm_per_deg"], rel=1e-3)
 
 
 def test_knee_limit_parameters(model):

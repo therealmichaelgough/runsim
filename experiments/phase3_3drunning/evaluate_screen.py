@@ -23,11 +23,13 @@ SCREEN = HERE / "screen"
 ITER_RE = re.compile(r"^ *(\d+)(r?) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+)")
 D2R = math.pi / 180
 TORQUE_KEYS = ("lumbar", "shoulder", "elbow", "pro_sup")
-STATE_BOUNDS = {  # deg, mirrors predict3d._set_running_bounds
+STATE_BOUNDS = {  # deg, mirrors predict3d._set_running_bounds (grade 0)
+    "pelvis_tilt": (-35, 15), "pelvis_list": (-15, 15), "pelvis_rotation": (-30, 30),
+    "hip_flexion": (-25, 85), "hip_adduction": (-30, 25), "hip_rotation": (-30, 30),
+    "knee_angle": (0, 120), "ankle_angle": (-38, 30),
     "lumbar_extension": (-35, 10), "lumbar_bending": (-20, 20),
     "lumbar_rotation": (-25, 25), "arm_flex": (-90, 60), "arm_add": (-60, 30),
     "arm_rot": (-90, 60), "elbow_flex": (30, 150), "pro_sup": (0, 120),
-    "hip_rotation": (-30, 30), "knee_angle": (0, 120),
 }
 
 

@@ -49,6 +49,24 @@ def test_metabolic_problem_prices_only_the_requested_actuators(tmp_path):
     assert lumbar.getOptimalForce() == 200.0
 
 
+def test_torque_price_scales_control_weights_with_capacity(tmp_path):
+    """0.006 per (N.m)^2: a 200 N.m actuator gets weight 240, a 10 N.m one 0.6."""
+    study, _, _ = build_running_study(
+        3.0, out_dir=tmp_path, model_path=MODEL, objective="metabolic",
+        actuator_strength=RUNNING_ACTUATOR_STRENGTH, torque_price_per_nm2=0.006)
+    effort = osim.MocoControlGoal.safeDownCast(_goals(study.getProblem())["effort"])
+    # the bindings expose neither getter; go through the generic property
+    weights = osim.MocoWeightSet.safeDownCast(
+        effort.getPropertyByName("control_weights").getValueAsObject(0))
+
+    def weight(path):
+        return weights.get(path).getWeight()
+
+    assert weight("/forceset/lumbar_ext") == pytest.approx(0.006 * 200 ** 2)
+    assert weight("/forceset/shoulder_flex_r") == pytest.approx(0.006 * 60 ** 2)
+    assert weight("/forceset/pro_sup_l") == pytest.approx(0.006 * 10 ** 2)
+
+
 def test_all_thirteen_actuators_priced_when_no_subset_given(tmp_path):
     study, _, _ = build_running_study(
         3.0, out_dir=tmp_path, model_path=MODEL, objective="metabolic",

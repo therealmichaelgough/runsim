@@ -44,6 +44,7 @@ class GaitPrediction3D:
     torque_power_weight: float | None = None
     torque_power_actuators: tuple[str, ...] | None = None
     joint_passives: bool = False
+    torque_price_per_nm2: float | None = None
 
 
 STOCK_ACTUATOR_STRENGTH = 10.0  # the model's placeholder optimal force, N.m
@@ -229,6 +230,7 @@ def build_running_study(
     torque_power_weight: float | None = None,
     torque_power_actuators: tuple[str, ...] | None = None,
     joint_passives: bool = False,
+    torque_price_per_nm2: float | None = None,
 ) -> tuple[osim.MocoStudy, osim.Model, str]:
     """Assemble the predictive problem without solving it: returns the
     study, the (metabolics-equipped) model, and the solution label.
@@ -273,16 +275,20 @@ def build_running_study(
         effort = osim.MocoControlGoal("effort", 0.1)
         effort.setExponent(2)
         effort.setDivideByDisplacement(True)
-        if torque_weight is not None:
+        if torque_price_per_nm2 is not None or torque_weight is not None:
             # Bhargava prices muscles only; the lumbar/arm CoordinateActuators
             # are otherwise nearly free under this objective (banked iterate:
             # arm flexion 91 deg RMS off the human reference). Weight their
             # controls in the regularizer so torque-driven flailing costs.
+            # torque_price_per_nm2 prices TORQUE squared uniformly across
+            # actuators of different capacity: control weight = price * F^2.
             fs = init.getForceSet()
             for i in range(fs.getSize()):
-                f = fs.get(i)
-                if f.getConcreteClassName() == "CoordinateActuator":
-                    effort.setWeightForControl(f.getAbsolutePathString(), torque_weight)
+                act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+                if act is not None:
+                    w = (torque_price_per_nm2 * act.getOptimalForce() ** 2
+                         if torque_price_per_nm2 is not None else torque_weight)
+                    effort.setWeightForControl(act.getAbsolutePathString(), w)
         problem.addGoal(effort)
         if torque_power_weight is not None:
             fs = init.getForceSet()
@@ -335,6 +341,7 @@ def predict_gait_3d(
     torque_power_weight: float | None = None,
     torque_power_actuators: tuple[str, ...] | None = None,
     joint_passives: bool = False,
+    torque_price_per_nm2: float | None = None,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
     solution and GRFs into out_dir.
@@ -344,6 +351,12 @@ def predict_gait_3d(
     torque_weight: metabolic objective only — weight on the lumbar/arm
     torque-actuator controls in the quadratic regularizer, in control
     (activation-like, torque / optimal force) space.
+    torque_price_per_nm2: replaces torque_weight with a price on torque
+    squared that is the same for every actuator regardless of its optimal
+    force (control weight = price * F^2). In activation space a 60-200 N.m
+    actuator's 5-20 N.m of holding torque is nearly free and the arms and
+    trunk rock across their bounds; 0.006 per (N.m)^2 makes ~25 N.m rms of
+    trunk torque cost ~0.4 J/kg/m, a tenth of running's metabolic cost.
     torque_power_weight: metabolic objective only — prices the ideal
     torque actuators' MECHANICAL WORK, which Bhargava (muscles only)
     leaves free: sum over actuators of squared power, per kg per metre,
@@ -366,7 +379,7 @@ def predict_gait_3d(
         speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
         max_iterations, label, objective, torque_weight, passive_forces,
         actuator_strength, torque_power_weight, torque_power_actuators,
-        joint_passives)
+        joint_passives, torque_price_per_nm2)
 
     t0 = time.time()
     solution = study.solve()
@@ -403,5 +416,5 @@ def predict_gait_3d(
         actuator_strength=dict(actuator_strength) if actuator_strength else None,
         torque_power_weight=torque_power_weight,
         torque_power_actuators=tuple(torque_power_actuators) if torque_power_actuators else None,
-        joint_passives=joint_passives,
+        joint_passives=joint_passives, torque_price_per_nm2=torque_price_per_nm2,
     )

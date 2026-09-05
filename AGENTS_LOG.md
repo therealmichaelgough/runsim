@@ -1323,3 +1323,33 @@ converged 3D solve lands.
 - Monitor for met_legs8 adds a DIVERGENCE guard: 8 consecutive alpha_pr
   < 2e-3 with a rising objective, or 8 restoration iterations -> driver
   killed (not banked), relaunch from the last banked leg.
+
+## 2026-09-05T00:45Z — main agent (Fable): lpj2 verdict — joint passives free 7 of 13 pinned coordinates
+
+- lpj2 (full joint passives, from met_leg01, harvested it 23): obj 2.894,
+  inf 17.6, met 2.39, 3.12 Hz, 2.27 BW; trunk 23/21/20 N.m rms. PINNED 6:
+  lumbar_extension (+10 bound), lumbar_bending (+-20), arm_add and
+  arm_rot both sides. Knees, hips, elbows and lumbar rotation are OFF
+  their bounds (limits/springs work where stiff enough). The 1 N.m/deg
+  lumbar spring and 0.05 N.m/deg shoulder springs are too weak against
+  200 / 60 N.m actuators whose static holding is unpriced by the power
+  term. met_legs8 (same formulation) keeps running as the best available.
+- Next: check whether the pelvis is at a bound (trunk lean may be pelvis
+  compensation), then stiffen lumbar ext/bend and shoulder springs or
+  review the trunk/arm bound ranges for a later leg.
+
+## 2026-09-05T01:00Z — main agent (Fable): formulation v5 (torque price per N.m^2) screened
+
+- Range check on lpj2 vs met_leg01: arms swing in the WRONG planes
+  (arm_add -60..+30 and arm_rot -90..+57 sweeping their bounds while
+  arm_flex moves only -14..+21); pelvis list +-14, pelvis rotation +-26,
+  lumbar bending +-20, lumbar rotation +-23 deg (human: +-5..10). The
+  activation-space weight 50 makes 5-20 N.m on 60-200 N.m actuators nearly
+  free; the 0.05-1 N.m/deg springs cannot hold against it.
+- v5: torque_price_per_nm2 0.006 (control weight = price * F^2: lumbar_ext
+  240, shoulders 22, elbow 10, pro_sup 0.6 — round 1's tame-arm pricing
+  scale, now with strong actuators + passives to hold the limbs), lumbar
+  springs 2/2/1 N.m/deg, shoulder springs 0.3 N.m/deg, lumbar power 0.01,
+  joint passives, passive fibers. Screen v5 launched 18:52 (16 threads,
+  30 it) from lpj2's iterate; met_legs8 (v4) continues at 64 threads.
+  Decision: pinned count and the pelvis/lumbar/arm ranges vs human.

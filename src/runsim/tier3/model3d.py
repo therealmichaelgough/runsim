@@ -71,23 +71,26 @@ RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
 #:   0.05 N.m/deg (2.5 N.m at 50 deg away), standing in for the flexor
 #:   tone that keeps runners' elbows at ~110-130 deg (Hamner & Delp 2013);
 #:   the arm swing itself stays free to be predicted.
-#: - lumbar_spring_*: linear stiffness + damping toward neutral on all three
-#:   lumbar coordinates, 1 N.m/deg and 0.02 N.m.s/deg — the spine's passive
-#:   tissues (order of Panjabi 1992 neutral-zone stiffness; Falisse 2019
-#:   passive linear trunk torques). The lumbar joint has no muscles here,
-#:   so without this the trunk swings between its bounds (leg-1 iterate:
-#:   all three lumbar coordinates pinned).
-#: - shoulder_spring_*: weak springs toward neutral on arm adduction and
-#:   rotation, 0.05 N.m/deg (capsule/tone); arm flexion stays free so the
-#:   swing itself is predicted.
+#: - lumbar_spring_*: linear stiffness + damping toward neutral on the
+#:   lumbar coordinates, 2 N.m/deg extension/bending, 1 N.m/deg rotation,
+#:   0.02 N.m.s/deg — the spine's passive tissues beyond the neutral zone
+#:   (Panjabi 1992; Falisse 2019 passive linear trunk torques). The lumbar
+#:   joint has no muscles here, so without this the trunk swings between
+#:   its bounds (leg-1 iterate: all three lumbar coordinates pinned; 1
+#:   N.m/deg still left extension and bending pinned).
+#: - shoulder_spring_*: springs toward neutral on arm adduction and
+#:   rotation, 0.3 N.m/deg (9 N.m at 30 deg: capsule and end-range
+#:   passive stiffness); arm flexion stays free so the swing itself is
+#:   predicted. 0.05 N.m/deg left both coordinates sweeping their bounds.
 #: - hip_rot_limit_*: CoordinateLimitForce at +-25 deg hip rotation
 #:   (5 N.m/deg beyond, 5-deg transition), the ligamentous end range.
 JOINT_PASSIVES = dict(
     knee_lower_deg=5.0, knee_upper_deg=120.0, knee_stiffness_nm_per_deg=5.0,
     knee_damping=0.5, knee_transition_deg=5.0,
     elbow_rest_deg=100.0, elbow_stiffness_nm_per_deg=0.05,
-    lumbar_stiffness_nm_per_deg=1.0, lumbar_damping_nm_s_per_deg=0.02,
-    shoulder_stiffness_nm_per_deg=0.05,
+    lumbar_stiffness_nm_per_deg=2.0, lumbar_rot_stiffness_nm_per_deg=1.0,
+    lumbar_damping_nm_s_per_deg=0.02,
+    shoulder_stiffness_nm_per_deg=0.3,
     hip_rot_limit_deg=25.0, hip_rot_stiffness_nm_per_deg=5.0,
     hip_rot_damping=0.5, hip_rot_transition_deg=5.0,
 )
@@ -135,8 +138,10 @@ def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
             model.addForce(f)
             added.append(f.getName())
     for coord in ("lumbar_extension", "lumbar_bending", "lumbar_rotation"):
+        k = p["lumbar_rot_stiffness_nm_per_deg" if coord == "lumbar_rotation"
+              else "lumbar_stiffness_nm_per_deg"]
         f = _spring(coord, f"lumbar_spring_{coord.split('_')[1]}",
-                    p["lumbar_stiffness_nm_per_deg"], 0.0, p["lumbar_damping_nm_s_per_deg"])
+                    k, 0.0, p["lumbar_damping_nm_s_per_deg"])
         model.addForce(f)
         added.append(f.getName())
     return added
