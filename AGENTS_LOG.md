@@ -1483,3 +1483,12 @@ converged 3D solve lands.
   passives) from met_leg01.sto, 48 threads, 100-iteration legs x 10,
   guarded monitor. Screen effv6b (same, 16 threads) gives the early
   verdict; nomono continues (it 19, inf 31) toward its it-40 test.
+- 22:57: the monitors' divergence auto-kill was a no-op — `wmic` returns
+  nothing on this Windows build, so the met_legs12 driver survived its
+  "kill" (found alive at 22:56 and killed by hand; the 1.05 gate would
+  have discarded its degraded leg anyway). Stage A monitor rebuilt with a
+  PowerShell Get-CimInstance lookup + taskkill. Earlier "driver KILLED"
+  notices (met_legs8/9 kills were manual) are unaffected.
+- Stage A it 0: effort objective 130 (the v6 iterate's 15-20 N.m trunk
+  and arm torques are expensive at the (F/10)^3 stock-scale pricing);
+  effv6b screen it 1: obj 109, inf 2.8e3, alpha 0.46 — recovering.
