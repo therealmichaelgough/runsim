@@ -1515,3 +1515,11 @@ converged 3D solve lands.
   23 passive elements; tests updated. Stage A (v6 model) keeps running;
   the continuation stages will build v7 (the effort gait's arms are
   inside those ranges, so the warm start holds).
+- 00:05: overnight hand-off automated. A watcher launches the continuation
+  (launch_continuation.ps1: blends 10,3,1,0.3,0; 3 legs x 150 it per stage;
+  64 threads; ipopt.opt = adaptive_mu_globalization never-monotone-mode)
+  from the newest met_legNN.sto the moment met_legs13 prints COMPLETE or
+  "budget exhausted"; a second guarded monitor waits for cont1.log and
+  reports stage/leg verdicts, kills on blow-up or sustained restoration.
+  If the Stage A guard kills met_legs13 instead, nothing launches — that
+  event is handled by hand.
