@@ -1434,3 +1434,8 @@ converged 3D solve lands.
   by 10/F again. Fixed: run_met_legs copies the sidecar when banking;
   met_leg01.strength.json created from the leg-1 solution's sidecar;
   met_legs11 + nomono + loqo killed in setup and relaunched (met_legs12).
+- 22:02: option screen loqo (mu_oracle loqo) killed at it 2 — the oracle
+  chose mu ~600 (lg 2.8) with alpha 5e-5: warm start destroyed. nomono
+  (adaptive_mu_globalization never-monotone-mode) continues: it 2 obj
+  3.02, inf 19, mu 1e-3.4, full steps — same as default so far; the test
+  is whether it avoids the mu bounce at it ~60-80.
