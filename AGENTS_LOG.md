@@ -1428,3 +1428,9 @@ converged 3D solve lands.
   restart tax is ~3 min setup + a few iterations); (2) screen IPOPT
   options from met_leg01: adaptive_mu_globalization never-monotone-mode
   (no fallback), mu_oracle loqo (centrality-based mu), 16 threads each.
+- BUG 2 (21:48): the driver banked met_leg01.sto WITHOUT its strength
+  sidecar (shutil.copyfile of the .sto only), so met_legs11 and the two
+  option screens launched from it would have rescaled the torque controls
+  by 10/F again. Fixed: run_met_legs copies the sidecar when banking;
+  met_leg01.strength.json created from the leg-1 solution's sidecar;
+  met_legs11 + nomono + loqo killed in setup and relaunched (met_legs12).

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from runsim.tier3 import solution_summary
 from runsim.tier3.model3d import RUNNING_ACTUATOR_STRENGTH
-from runsim.tier3.predict3d import predict_gait_3d
+from runsim.tier3.predict3d import predict_gait_3d, strength_sidecar
 
 HERE = Path(__file__).resolve().parent
 LOG = HERE / "predict3d_met_log.json"
@@ -93,9 +93,14 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
             print(json.dumps(stats), flush=True)
             continue  # guess unchanged -> barrier-reset retry from prior good
 
-        # bank this leg under its own name, then chain from it
+        # bank this leg under its own name, then chain from it — with its
+        # strength sidecar, or the next leg rescales the torques as if the
+        # iterate had been solved with the stock 10 N.m actuators
         banked = HERE / f"met_leg{leg:02d}.sto"
         shutil.copyfile(r.solution_path, banked)
+        side = strength_sidecar(r.solution_path)
+        if side.exists():
+            shutil.copyfile(side, strength_sidecar(banked))
         stats["banked"] = banked.name
         log.append(stats)
         LOG.write_text(json.dumps(log, indent=2))
