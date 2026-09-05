@@ -1368,3 +1368,8 @@ converged 3D solve lands.
   becomes production (met_legs9) from its own iterate.
 - Next monitor adds a blow-up guard: objective > 1.5x the leg's running
   minimum with inf_pr > 100 -> kill.
+- met_legs9 launched 19:29 (48 threads) on v5 from lpj2's iterate — the
+  same run as the v5 screen but at production scale; killed if the screen's
+  harvest (~19:50) shows the arms/trunk still on their bounds. Monitor
+  bsxywuxkx: blow-up (obj > 1.5x leg minimum with inf > 100), tiny-step
+  and restoration guards all kill the driver rather than bank.
