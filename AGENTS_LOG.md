@@ -1659,3 +1659,12 @@ converged 3D solve lands.
   iterations terminates as Solved_To_Acceptable_Level (success -> banked,
   driver COMPLETE, hand-off finalizes). Tolerance to be stated honestly
   in the README.
+- Correction: the solver echo shows Moco ITSELF sets acceptable_tol,
+  acceptable_constr_viol_tol, acceptable_dual_inf_tol and
+  acceptable_compl_inf_tol to its convergence tolerance (1e-3), and
+  options Moco sets programmatically are not overridable from ipopt.opt
+  (cf. the print_user_options "will remain" warning). Loosening Moco's
+  own tolerance is the lever: predict_gait_3d(tolerance=), driver --tol=,
+  launcher -Tol. Plan: converge at 1e-2 (the dips reach 0.02-0.05, the
+  objective is converged to 4 digits), then attempt a 1e-3 polish leg;
+  report the achieved tolerance honestly.

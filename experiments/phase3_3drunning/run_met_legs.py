@@ -39,7 +39,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
          torque_price_per_nm2: float | None = None,
          effort_blend: float | None = None,
          objective: str = "metabolic",
-         tag: str = "") -> Path | None:
+         tag: str = "",
+         tolerance: float = 1e-3) -> Path | None:
     """Run capped legs from `start`; returns the last banked solution (or
     None). `tag` names the banked files met_<tag>_legNN.sto so continuation
     stages do not overwrite one another."""
@@ -93,9 +94,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                             torque_power_actuators=torque_power_actuators,
                             joint_passives=joint_passives,
                             torque_price_per_nm2=torque_price_per_nm2,
-                            effort_blend=effort_blend)
+                            effort_blend=effort_blend, tolerance=tolerance)
         stats = solution_summary(r.grf_path, mass_kg=MASS)
+        acceptable = "Acceptable" in r.status
         stats.update(speed=3.0, grade=0.0, leg=leg, success=r.success,
+                     status=r.status, acceptable=acceptable, tolerance=tolerance,
                      objective=r.objective,
                      cost_of_transport=r.cost_of_transport,
                      solution=r.solution_path.name,
@@ -135,8 +138,10 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         guess = banked
         prev_obj = min(prev_obj, r.objective) if prev_obj is not None else r.objective
 
-        if r.success:
-            print("[converged - metabolic solve COMPLETE]", flush=True)
+        if r.success or acceptable:
+            # IPOPT's acceptable-level stop (ipopt.opt acceptable_* options) is
+            # a deliberate termination in the feasibility dip, not a failure
+            print(f"[converged ({r.status}) - metabolic solve COMPLETE]", flush=True)
             return last_banked
     print("[leg budget exhausted without formal convergence]", flush=True)
     return last_banked
@@ -150,6 +155,7 @@ if __name__ == "__main__":
     #                 [--effort-blend=W]  (cubed effort term kept at weight W: continuation)
     #                 [--objective=effort]  (Stage A of the continuation: effort objective)
     #                 [--tag=NAME]  (bank as met_NAME_legNN.sto instead of met_legNN.sto)
+    #                 [--tol=T]  (Moco convergence + constraint tolerance; default 1e-3)
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     power = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--power=")), None)
@@ -162,6 +168,7 @@ if __name__ == "__main__":
     objective = next((a.split("=", 1)[1] for a in flags
                       if a.startswith("--objective=")), "metabolic")
     tag = next((a.split("=", 1)[1] for a in flags if a.startswith("--tag=")), "")
+    tol = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--tol=")), 1e-3)
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
@@ -171,4 +178,4 @@ if __name__ == "__main__":
          actuator_strength="--strength" in flags,
          torque_power_weight=power, torque_power_actuators=power_on,
          joint_passives="--joints" in flags, torque_price_per_nm2=torque_price,
-         effort_blend=effort_blend, objective=objective, tag=tag)
+         effort_blend=effort_blend, objective=objective, tag=tag, tolerance=tol)

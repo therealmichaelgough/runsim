@@ -46,6 +46,7 @@ class GaitPrediction3D:
     joint_passives: bool = False
     torque_price_per_nm2: float | None = None
     effort_blend: float | None = None
+    status: str = ""  # IPOPT return status, e.g. Solve_Succeeded / Solved_To_Acceptable_Level
 
 
 STOCK_ACTUATOR_STRENGTH = 10.0  # the model's placeholder optimal force, N.m
@@ -258,6 +259,7 @@ def build_running_study(
     joint_passives: bool = False,
     torque_price_per_nm2: float | None = None,
     effort_blend: float | None = None,
+    tolerance: float = 1e-3,
 ) -> tuple[osim.MocoStudy, osim.Model, str]:
     """Assemble the predictive problem without solving it: returns the
     study, the (metabolics-equipped) model, and the solution label.
@@ -347,8 +349,12 @@ def build_running_study(
     solver.set_num_mesh_intervals(mesh_intervals)
     solver.set_verbosity(2)
     solver.set_optim_solver("ipopt")
-    solver.set_optim_convergence_tolerance(1e-3)
-    solver.set_optim_constraint_tolerance(1e-3)
+    # Moco maps these onto IPOPT's tol/constr_viol_tol AND its acceptable_*
+    # tolerances, and options Moco sets programmatically cannot be overridden
+    # from ipopt.opt; loosening here is the only way to stop in the
+    # feasibility dip of the 3D metabolic problem (2026-09-05)
+    solver.set_optim_convergence_tolerance(tolerance)
+    solver.set_optim_constraint_tolerance(tolerance)
     solver.set_optim_max_iterations(max_iterations)
     if guess_path is not None:
         solver.setGuessFile(str(guess_path))
@@ -373,9 +379,11 @@ def predict_gait_3d(
     joint_passives: bool = False,
     torque_price_per_nm2: float | None = None,
     effort_blend: float | None = None,
+    tolerance: float = 1e-3,
 ) -> GaitPrediction3D:
     """Solve one predictive full-cycle 3D running problem; write the
-    solution and GRFs into out_dir.
+    solution and GRFs into out_dir. `tolerance` is Moco's convergence and
+    constraint tolerance (default 1e-3; 1e-2 for the 3D metabolic endgame).
 
     objective: "effort" (cubed controls / distance) or "metabolic"
     (Bhargava cost of transport + small quadratic effort regularizer).
@@ -414,12 +422,13 @@ def predict_gait_3d(
         speed_ms, grade, out_dir, guess_path, model_path, mesh_intervals,
         max_iterations, label, objective, torque_weight, passive_forces,
         actuator_strength, torque_power_weight, torque_power_actuators,
-        joint_passives, torque_price_per_nm2, effort_blend)
+        joint_passives, torque_price_per_nm2, effort_blend, tolerance)
 
     t0 = time.time()
     solution = study.solve()
     solve_time = time.time() - t0
     success = solution.success()
+    status = solution.getStatus()
     solution.unseal()
 
     sol_path = out_dir / f"solution_{label}.sto"
@@ -452,5 +461,5 @@ def predict_gait_3d(
         torque_power_weight=torque_power_weight,
         torque_power_actuators=tuple(torque_power_actuators) if torque_power_actuators else None,
         joint_passives=joint_passives, torque_price_per_nm2=torque_price_per_nm2,
-        effort_blend=effort_blend,
+        effort_blend=effort_blend, status=status,
     )

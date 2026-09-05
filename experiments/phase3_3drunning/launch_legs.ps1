@@ -30,6 +30,7 @@ param(
     [double]$EffortBlend = -1,  # >= 0: keep a cubed-control effort term at this weight (continuation)
     [string]$Objective = "metabolic",  # or "effort" (continuation Stage A)
     [string]$Tag = "",                 # bank as met_<Tag>_legNN.sto (never overwrite another run's legs)
+    [double]$Tol = 1e-3,               # Moco convergence + constraint tolerance
     [string[]]$IpoptOpts = @()
 )
 $root = "D:\runsim"
@@ -58,6 +59,7 @@ if ($TorquePrice -ge 0) { $args += "--torque-price=$TorquePrice" }
 if ($EffortBlend -ge 0) { $args += "--effort-blend=$EffortBlend" }
 if ($Objective -ne "metabolic") { $args += "--objective=$Objective" }
 if ($Tag -ne "") { $args += "--tag=$Tag" }
+if ($Tol -ne 1e-3) { $args += "--tol=$Tol" }
 $out = Join-Path $d3 "$LogName.log"
 $err = Join-Path $d3 "$LogName`_err.log"
 if (Test-Path $out) { throw "log exists, pick another -LogName: $out" }
