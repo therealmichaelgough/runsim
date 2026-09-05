@@ -1508,3 +1508,10 @@ converged 3D solve lands.
   launch_*.ps1 -IpoptOpts) for the metabolic continuation stages.
 - Stage A screen effv6b capped at it 30: obj 130 -> 9.44, inf 64, not
   converged; production met_legs13 continues the same path (100-it legs).
+- 23:58: nomono iterate (it 40): pinned 3 — arm_flex both sides and one
+  elbow: with the other planes closed the metabolic objective swung the
+  arms to the flexion bound (muscle COT down to 2.06 again). v7 = v6 +
+  end-range limits for arm flexion (-60..30) and elbows (40..145);
+  23 passive elements; tests updated. Stage A (v6 model) keeps running;
+  the continuation stages will build v7 (the effort gait's arms are
+  inside those ranges, so the warm start holds).

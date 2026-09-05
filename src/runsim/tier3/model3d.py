@@ -91,6 +91,12 @@ RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
 #:   swept 60 deg of abduction and 90 deg of rotation: a 60 N.m actuator
 #:   overrides an 18 N.m spring, while a real shoulder's passive stiffness
 #:   rises steeply at end range (Panjabi 1992 neutral zone for the spine).
+#: - shoulder_flex_limit_*, elbow_limit_*: the same end-range treatment
+#:   for arm flexion (-60..30; the running swing is -45..+15, Hamner 2010)
+#:   and elbow flexion (40..145): once the other planes were closed, the
+#:   metabolic objective swung the arms to the flexion bound and an elbow
+#:   to its bound (nomono iterate, 2026-09-04). The weak elbow posture
+#:   spring stays for the neutral zone.
 JOINT_PASSIVES = dict(
     knee_lower_deg=5.0, knee_upper_deg=120.0, knee_stiffness_nm_per_deg=5.0,
     knee_damping=0.5, knee_transition_deg=5.0,
@@ -105,6 +111,8 @@ JOINT_PASSIVES = dict(
     # ranges are the physiological running ranges, not anatomical maxima
     shoulder_add_limits_deg=(-30.0, 15.0),   # 30 deg abduction .. 15 adduction
     shoulder_rot_limits_deg=(-45.0, 30.0),
+    shoulder_flex_limits_deg=(-60.0, 30.0),  # running swing -45..+15 (Hamner 2010)
+    elbow_limits_deg=(40.0, 145.0),          # runners hold 110-130 deg; never straight
     lumbar_bend_limit_deg=10.0,
     lumbar_rot_limit_deg=15.0,
     range_limit_stiffness_nm_per_deg=3.0, range_limit_damping=0.2,
@@ -170,6 +178,8 @@ def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
     for side in ("r", "l"):
         limits.append((f"arm_add_{side}", f"shoulder_add_limit_{side}", *p["shoulder_add_limits_deg"]))
         limits.append((f"arm_rot_{side}", f"shoulder_rot_limit_{side}", *p["shoulder_rot_limits_deg"]))
+        limits.append((f"arm_flex_{side}", f"shoulder_flex_limit_{side}", *p["shoulder_flex_limits_deg"]))
+        limits.append((f"elbow_flex_{side}", f"elbow_limit_{side}", *p["elbow_limits_deg"]))
     for coord, name, lo, hi in limits:
         f = osim.CoordinateLimitForce(coord, hi, ks, lo, ks, cd, tr)
         f.setName(name)
