@@ -111,6 +111,16 @@ survey/plan.
   lumbar actuators gives running-order trunk loads and a physiological
   whole-body cost). Report COT as Bhargava muscles + actuator |P| at
   muscle-like efficiency.
+- **Limbs without muscles need end-range limit forces, not springs or
+  bounds.** The lumbar joint, shoulders and elbows have no muscles in
+  LaiUhlrich2022; under a metabolic objective the trunk and arms swing
+  to whatever stops them. Problem bounds stall the solver (free stops),
+  weak linear springs are overridden by literature-strength actuators
+  (18 N.m at 60 deg vs a 60 N.m actuator), and only CoordinateLimitForces
+  at physiological running ranges (neutral zone soft, 3 N.m/deg beyond;
+  `build_running_model(joint_passives=True)`, formulation v6, 2026-09-04)
+  gave an iterate with no coordinate on a bound. Check
+  `evaluate_screen.py`'s pinned list before trusting any 3D iterate.
 - **Every MocoOutputGoal is a finite-differenced callback.** Thirteen
   power goals made problem setup 3.5x slower and iterations several times
   slower; three (lumbar only, `torque_power_actuators=("lumbar",)`) cost

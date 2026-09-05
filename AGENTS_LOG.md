@@ -1394,3 +1394,20 @@ converged 3D solve lands.
   +-15, 3 N.m/deg beyond, 5-deg transition. 19 passive elements total.
 - met_legs9 (v5) keeps running as the best available until the v6 screen
   (from v5's iterate) reports.
+
+## 2026-09-05T03:45Z — main agent (Fable): v6 = FIRST ITERATE WITH NO PINNED COORDINATE; production on v6 (met_legs10)
+
+- v6 screen harvested at it 19: obj 3.124, inf 80 (limit-force transient
+  still settling), muscle COT 2.56, 3.40 Hz, 2.35 BW; PINNED 0. Ranges:
+  arm_add -36..+18, arm_rot -49..+32, arm_flex -6..+42, elbows 52-139,
+  lumbar ext -12..+4, bending +-16, rotation +-18, pelvis list +-10,
+  pelvis rotation +-22, hip rotation -22..+26, knees 3-61 deg. Trunk
+  15/16/14 N.m rms, shoulders ~15 N.m. Pelvis/hip rotation and lumbar
+  amplitudes still above human — tune the limits after convergence.
+- met_legs9 (v5) killed 20:42 at it ~50 (arms sweeping; stall pattern).
+  met_legs10 launched 20:42 on v6 from screen/v6/solution_screen_v6.sto,
+  64 threads, 300 x 12, guarded monitor (blow-up / tiny-step / restoration
+  auto-kill). Formulation v6 = passive fibers + literature-strength
+  actuators + joint passives (knee/hip limits, elbow springs, lumbar and
+  shoulder springs, end-range limits) + lumbar power 0.01 + torque price
+  0.006/(N.m)^2.
