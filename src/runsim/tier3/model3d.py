@@ -113,8 +113,9 @@ JOINT_PASSIVES = dict(
     shoulder_rot_limits_deg=(-45.0, 30.0),
     shoulder_flex_limits_deg=(-60.0, 30.0),  # running swing -45..+15 (Hamner 2010)
     elbow_limits_deg=(40.0, 145.0),          # runners hold 110-130 deg; never straight
-    lumbar_bend_limit_deg=10.0,
-    lumbar_rot_limit_deg=15.0,
+    lumbar_bend_limit_deg=6.0,   # v10: running lumbar bending ~+-5 deg
+    lumbar_rot_limit_deg=8.0,    # v10: the v9 iterate counter-rotated the trunk +-15
+                                 # against a +-8 trunk yaw, giving +-23 of pelvis yaw
     range_limit_stiffness_nm_per_deg=10.0, range_limit_damping=0.2,
     range_limit_transition_deg=2.0,
 )
