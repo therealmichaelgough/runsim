@@ -307,6 +307,19 @@ def build_running_study(
         effort = osim.MocoControlGoal("effort", 10)
         effort.setExponent(3)
         effort.setDivideByDisplacement(True)
+        if actuator_strength:
+            # cubed-control effort prices activation; with literature-strength
+            # actuators that makes 20 N.m of trunk torque cost 0.001. Price the
+            # torque actuators' CONTROLS as if they were still the stock 10 N.m
+            # units (weight (F/10)^3): the validated effort gait's pricing scale,
+            # independent of the actuator strength chosen for the model.
+            fs = init.getForceSet()
+            for i in range(fs.getSize()):
+                act = osim.CoordinateActuator.safeDownCast(fs.get(i))
+                if act is not None:
+                    effort.setWeightForControl(
+                        act.getAbsolutePathString(),
+                        (act.getOptimalForce() / STOCK_ACTUATOR_STRENGTH) ** 3)
         problem.addGoal(effort)
 
     # full-cycle duration bracket around the seed's 0.715 s

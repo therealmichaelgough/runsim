@@ -81,3 +81,16 @@ def test_effort_problem_has_no_metabolic_terms(tmp_path):
     assert "met" not in names and not any(n.startswith("power_") for n in names)
     assert label == "p3d_v3_gp0"
     assert not model.hasComponent("metabolic_cost")
+
+
+def test_effort_with_strong_actuators_prices_torque_at_stock_scale(tmp_path):
+    """Cubed effort with 200 N.m lumbar: control weight (200/10)^3 so a given
+    torque costs what it did with the stock actuators; 10 N.m stays 1."""
+    study, _, _ = build_running_study(
+        3.0, out_dir=tmp_path, model_path=MODEL, actuator_strength=RUNNING_ACTUATOR_STRENGTH)
+    effort = osim.MocoControlGoal.safeDownCast(_goals(study.getProblem())["effort"])
+    weights = osim.MocoWeightSet.safeDownCast(
+        effort.getPropertyByName("control_weights").getValueAsObject(0))
+    assert weights.get("/forceset/lumbar_ext").getWeight() == pytest.approx(20.0 ** 3)
+    assert weights.get("/forceset/elbow_flex_l").getWeight() == pytest.approx(4.0 ** 3)
+    assert weights.get("/forceset/pro_sup_r").getWeight() == pytest.approx(1.0)

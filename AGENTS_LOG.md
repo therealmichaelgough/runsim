@@ -1439,3 +1439,22 @@ converged 3D solve lands.
   (adaptive_mu_globalization never-monotone-mode) continues: it 2 obj
   3.02, inf 19, mu 1e-3.4, full steps — same as default so far; the test
   is whether it avoids the mu bounce at it ~60-80.
+
+## 2026-09-05T05:35Z — main agent (Fable): production still trades feasibility for objective; continuation plan
+
+- met_legs12 leg 1 at it 28 (86 s/iter with the screen alongside): obj
+  2.60 falling while inf_pr rose 4 -> 21 after the barrier collapsed
+  (mu 1e-7.1, inertia regularization appearing). Every metabolic leg
+  since the objective switch has banked infeasible iterates (inf 3-27);
+  the short-leg strategy restarts the same dynamics. nomono screen at
+  it 13 behaves like the default so far.
+- Diagnosis: the metabolic objective was switched on abruptly from a
+  feasible effort gait (inf 1e-3); the iterates went infeasible and the
+  barrier never recovers. Standard remedy: continuation in the objective.
+  Stage A: re-converge the EFFORT gait on the v6 model (passive fibers,
+  strong actuators priced at the stock (F/10)^3 scale, joint passives)
+  from solution_p3d_v3_gp0.sto — a feasible v6 base. Stage B: blend
+  effort -> metabolic in steps (lambda 0.25/0.5/0.75/1), each leg warm-
+  started from the previous, so iterates stay near-feasible.
+- Code: effort objective with actuator_strength now weights each torque
+  actuator's cubed control by (F/10)^3 (test added).

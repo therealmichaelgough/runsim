@@ -16,7 +16,8 @@ Usage: screen_barrier.py <name> <torque_weight> <max_iters> [key=value ...]
                     if omitted — each is a costly goal callback),
                     joints=1 (knee/hip limits, lumbar/shoulder/elbow springs),
                     torque_price=<p> (price torque^2 at p per (N.m)^2 for
-                    every actuator, replacing the activation-space weight)
+                    every actuator, replacing the activation-space weight),
+                    objective=effort (cubed-control effort instead of metabolic)
   every other key=value is written to the run's ipopt.opt, e.g.
     screen_barrier.py adaptive 50 80 mu_strategy=adaptive
 Writes <run>/result.json and prints it; the solution stays in <run>/ for
@@ -29,7 +30,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MASS = 75.16
-FORMULATION_KEYS = ("start", "passive", "strength", "power", "power_on", "joints", "torque_price")
+FORMULATION_KEYS = ("start", "passive", "strength", "power", "power_on", "joints", "torque_price",
+                    "objective")
 
 
 def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> None:
@@ -53,14 +55,15 @@ def main(name: str, torque_weight: float, max_iters: int, opts: list[str]) -> No
     power_on = tuple(form["power_on"].split(",")) if form.get("power_on") else None
     joints = form.get("joints", "0") not in ("0", "", "false", "no")
     torque_price = float(form["torque_price"]) if "torque_price" in form else None
+    objective = form.get("objective", "metabolic")
     r = predict_gait_3d(3.0, out_dir=run, guess_path=HERE / start,
-                        max_iterations=max_iters, objective="metabolic",
+                        max_iterations=max_iters, objective=objective,
                         torque_weight=torque_weight, label=f"screen_{name}",
                         passive_forces=passive, actuator_strength=strength,
                         torque_power_weight=power, torque_power_actuators=power_on,
                         joint_passives=joints, torque_price_per_nm2=torque_price)
     stats = solution_summary(r.grf_path, mass_kg=MASS)
-    stats.update(name=name, torque_weight=torque_weight, start=start,
+    stats.update(name=name, objective_kind=objective, torque_weight=torque_weight, start=start,
                  passive_forces=passive, actuator_strength=strength,
                  torque_power_weight=power, torque_power_actuators=power_on,
                  joint_passives=joints, torque_price_per_nm2=torque_price,
