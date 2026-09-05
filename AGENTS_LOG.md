@@ -1734,3 +1734,21 @@ converged 3D solve lands.
 - met_legs22 (bound_relax_factor 0 trial) relaunched via the launcher +
   an appended ipopt.opt line (the nested PowerShell call flattened a
   two-element -IpoptOpts array into -EffortBlend).
+
+## 2026-09-05T23:35Z — main agent (Fable): bound-relaxation trial changes nothing; milestone 2 closed
+
+- met_legs22 leg 1 (bound_relax_factor 0, tol 1e-1, mesh 75, 40 it):
+  Maximum_Iterations_Exceeded, obj 3.3932; dual 0.054, constraint
+  violation 1.4e-4 scaled / 0.039 unscaled, COMPLEMENTARITY 0.527 —
+  identical to the relaxed run. The complementarity floor is structural
+  (saturated muscle excitations with large bound multipliers). Driver
+  stopped; no solver running; ipopt.opt removed.
+- MILESTONE 2 CLOSED (commit b579275 + d19b12a): solution_p3d_v3_gp0_met_v12
+  finalized and validated (arm swing restored: amplitude 1.03x measured,
+  corr -0.97), README ledger, CLAUDE.md gotchas, Unreal export (17 gaits,
+  23 tests pass), status page. Next: speed/grade chains with formulation
+  v12 (launch_legs.ps1 -Strength -Joints -Power 0.05 -PowerOn lumbar
+  -TorquePrice 0.03 -Tol 0.1 -Mesh 75 -IpoptOpts never-monotone-mode);
+  knee-lift / elbow-posture validation study; the strength-limitation
+  finding (21 saturated muscles at 3 m/s) deserves its own experiment
+  (muscle strength scaling vs cadence/COT).
