@@ -1620,3 +1620,17 @@ converged 3D solve lands.
   COT 2.91 J/kg/m, 2.96 Hz, 248 ms contact, 2.57 BW. PINNED 2: both
   ankles on the problem bound (+30 plantarflexion). v12 = v11 + ankle
   end-range limits (-30..40) with the problem bound widened to -40..50.
+
+## 2026-09-05T15:25Z — main agent (Fable): v12 leg 1 banked — best feasibility yet, human-scale trunk/pelvis
+
+- met_legs17 (v12) leg 1 (100 it): obj 3.422 = met ~2.89 + muscle effort
+  0.104 + torque 0.424 + lumbar power 0.003; inf_pr 18 -> 1.84 within the
+  leg (best of any metabolic leg), mu 1e-7.9, no fallback; muscle COT
+  2.90, 2.98 Hz, 253 ms contact, 2.39 BW. Pinned 0. Ranges: ankles -6..+37
+  (inside the new 40-deg limit), pelvis list +-3.5, pelvis rotation +-14,
+  hip rotation -13..+16, lumbar ext -8..-5, bending +-7, rotation +-2, arm
+  flexion -64..+35, elbows 38-105, knees 4-46.
+- Validation flag for the Hamner comparison: peak swing knee flexion ~45
+  deg (human ~80-90 at 3 m/s) — a low-lift gait; arm flexion sweep ~100
+  deg (human ~60). Numerically sound; revisit after convergence.
+- Leg 2 running from met_leg01.sto (v12); gate keyed on the v12 passives.
