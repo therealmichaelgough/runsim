@@ -104,8 +104,8 @@ JOINT_PASSIVES = dict(
     lumbar_stiffness_nm_per_deg=2.0, lumbar_rot_stiffness_nm_per_deg=1.0,
     lumbar_damping_nm_s_per_deg=0.02,
     shoulder_stiffness_nm_per_deg=0.3,
-    hip_rot_limit_deg=25.0, hip_rot_stiffness_nm_per_deg=5.0,
-    hip_rot_damping=0.5, hip_rot_transition_deg=5.0,
+    hip_rot_limit_deg=15.0, hip_rot_stiffness_nm_per_deg=10.0,
+    hip_rot_damping=0.5, hip_rot_transition_deg=2.0,
     # end-range limits (neutral zone inside, steep passive stiffness beyond;
     # Panjabi 1992 for the spine, capsular end-range for the shoulder):
     # ranges are the physiological running ranges, not anatomical maxima
@@ -115,9 +115,14 @@ JOINT_PASSIVES = dict(
     elbow_limits_deg=(40.0, 145.0),          # runners hold 110-130 deg; never straight
     lumbar_bend_limit_deg=10.0,
     lumbar_rot_limit_deg=15.0,
-    range_limit_stiffness_nm_per_deg=3.0, range_limit_damping=0.2,
-    range_limit_transition_deg=5.0,
+    range_limit_stiffness_nm_per_deg=10.0, range_limit_damping=0.2,
+    range_limit_transition_deg=2.0,
 )
+# v9 (2026-09-05): with 3 N.m/deg and 5-deg transitions the v8 iterate rode
+# 5-7 deg into every limit (pelvis rotation +-27, hips +-25, lumbar bending
+# and rotation +-17, arm flexion sweeping 115 deg); stiffer, sharper limits
+# make the running ranges actual end ranges, and hip rotation is held to
+# +-15 (running uses ~+-10).
 _RAD = 180.0 / 3.141592653589793
 
 

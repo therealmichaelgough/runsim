@@ -1550,3 +1550,17 @@ converged 3D solve lands.
   strength, lumbar power 0.01, torque price 0.006, ipopt.opt
   never-monotone-mode) from v6_metabolic_it78.sto, 48 threads, 100-it
   legs x 20, guarded monitor; the v8 screen (16 threads) runs alongside.
+
+## 2026-09-05T09:00Z — main agent (Fable): v8 leg 1 — no pinning, but 2-3x human amplitudes; v9 planned
+
+- met_legs14 (v8) leg 1 (100 it): obj 2.409 = met 1.909 + muscle effort
+  0.081 + torque 0.299 + lumbar power 0.119; inf 6.97 falling slowly
+  (alpha 0.004-0.04, mu 1e-7.3, NO fallback with never-monotone-mode);
+  3.04 Hz, 26% flight, 1.90 BW. Pinned 1 (pelvis_rotation at +30).
+  Ranges: pelvis rotation -24..+30, hips -23..+27, lumbar bending +-17,
+  rotation +-17, extension -24..+5, arm flexion -70..+45, elbows 36-125.
+  The joints ride 5-7 deg into the 3 N.m/deg, 5-deg-transition limits;
+  the optimizer pays 0.42 of actuator cost to save ~1.4 of muscle cost.
+- v9: JOINT_PASSIVES defaults -> limit stiffness 10 N.m/deg, transition
+  2 deg, hip rotation +-15 (10 N.m/deg); screen with torque price 0.03
+  and lumbar power 0.05 (5x). Production v8 leg 2 continues meanwhile.
