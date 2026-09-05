@@ -19,7 +19,7 @@ from pathlib import Path
 
 from runsim.tier3 import solution_summary
 from runsim.tier3.model3d import RUNNING_ACTUATOR_STRENGTH
-from runsim.tier3.predict3d import predict_gait_3d, strength_sidecar
+from runsim.tier3.predict3d import gait_label, predict_gait_3d, strength_sidecar
 
 HERE = Path(__file__).resolve().parent
 LOG = HERE / "predict3d_met_log.json"
@@ -73,7 +73,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
 
     for leg in range(1, max_legs + 1):
         t0 = time.time()
-        r = predict_gait_3d(3.0, out_dir=HERE, guess_path=guess,
+        # the driver's working solution must never collide with a hand-run
+        # solution of the same speed/grade/objective (Stage A overwrote the
+        # validated effort gait solution_p3d_v3_gp0.sto on 2026-09-05)
+        label = gait_label(3.0, 0.0, objective) + "_legs" + (f"_{tag}" if tag else "")
+        r = predict_gait_3d(3.0, out_dir=HERE, guess_path=guess, label=label,
                             max_iterations=leg_iters, objective=objective,
                             torque_weight=torque_weight,
                             mesh_intervals=mesh_intervals,

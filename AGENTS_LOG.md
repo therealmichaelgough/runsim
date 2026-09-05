@@ -1523,3 +1523,22 @@ converged 3D solve lands.
   reports stage/leg verdicts, kills on blow-up or sustained restoration.
   If the Stage A guard kills met_legs13 instead, nothing launches — that
   event is handled by hand.
+
+## 2026-09-05T07:20Z — main agent (Fable): Stage A also crawls; passive-fibers hypothesis; effort gait file overwritten
+
+- met_legs13 leg 1 (effort on v6, 100 it): obj 130 -> 2.546 but inf_pr
+  54 (it 85) -> 105 (it 100), mu 1e-6.9 — the effort problem on the v6
+  model does not reach feasibility either; leg 2 started (barrier reset).
+  Banked met_leg01.sto (2.79 Hz, 30% flight, 4.4 BW impact spike).
+- HAZARD: the driver's effort label is the default "p3d_v3_gp0", so leg 1
+  OVERWROTE solution_p3d_v3_gp0.sto (the validated Sep-2 effort gait).
+  Fixed for future launches (driver label gets a "_legs[_tag]" suffix);
+  restoring the original from git once Stage A no longer rewrites it.
+- Hypothesis: muscle passive fiber forces are the numerical culprit —
+  every fast-converging run today (base, lp01: inf ~5 in 20 it) had them
+  OFF; every crawling run (lp01pas onward: inf 20-100) had them ON. The
+  CLAUDE.md recipe (Falisse/Dembia) turns them off and uses smooth limit
+  torques, which v7 now provides for every muscle-less or pinned joint.
+  Screen v8 launched 00:23: passive OFF, v7 joint passives, strength,
+  lumbar power 0.01, torque price 0.006, never-monotone-mode, from
+  v6_metabolic_it78.sto, 30 it, 16 threads.
