@@ -37,7 +37,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
          joint_passives: bool = False,
          torque_price_per_nm2: float | None = None,
          effort_blend: float | None = None,
-         objective: str = "metabolic") -> None:
+         objective: str = "metabolic",
+         tag: str = "") -> Path | None:
+    """Run capped legs from `start`; returns the last banked solution (or
+    None). `tag` names the banked files met_<tag>_legNN.sto so continuation
+    stages do not overwrite one another."""
     guess = Path(start) if Path(start).is_absolute() else HERE / start
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
@@ -59,6 +63,8 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                  if r.get("speed") == 3.0 and "objective" in r
                  and all(r.get(k) == v for k, v in formulation.items())]
     prev_obj = min(prev_objs) if prev_objs else None
+    last_banked: Path | None = None
+    prefix = f"met_{tag}_leg" if tag else "met_leg"
     # provenance: IPOPT reads ./ipopt.opt from the CWD at every solver start
     opt_file = Path.cwd() / "ipopt.opt"
     ipopt_opts = ([l.strip() for l in opt_file.read_text().splitlines()
@@ -101,11 +107,12 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         # bank this leg under its own name, then chain from it — with its
         # strength sidecar, or the next leg rescales the torques as if the
         # iterate had been solved with the stock 10 N.m actuators
-        banked = HERE / f"met_leg{leg:02d}.sto"
+        banked = HERE / f"{prefix}{leg:02d}.sto"
         shutil.copyfile(r.solution_path, banked)
         side = strength_sidecar(r.solution_path)
         if side.exists():
             shutil.copyfile(side, strength_sidecar(banked))
+        last_banked = banked
         stats["banked"] = banked.name
         log.append(stats)
         LOG.write_text(json.dumps(log, indent=2))
@@ -116,8 +123,9 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
 
         if r.success:
             print("[converged - metabolic solve COMPLETE]", flush=True)
-            return
+            return last_banked
     print("[leg budget exhausted without formal convergence]", flush=True)
+    return last_banked
 
 
 if __name__ == "__main__":
@@ -127,6 +135,7 @@ if __name__ == "__main__":
     #                 [--torque-price=P]  (torque^2 price per (N.m)^2, all actuators)
     #                 [--effort-blend=W]  (cubed effort term kept at weight W: continuation)
     #                 [--objective=effort]  (Stage A of the continuation: effort objective)
+    #                 [--tag=NAME]  (bank as met_NAME_legNN.sto instead of met_legNN.sto)
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     power = next((float(a.split("=", 1)[1]) for a in flags if a.startswith("--power=")), None)
@@ -138,6 +147,7 @@ if __name__ == "__main__":
                          if a.startswith("--effort-blend=")), None)
     objective = next((a.split("=", 1)[1] for a in flags
                       if a.startswith("--objective=")), "metabolic")
+    tag = next((a.split("=", 1)[1] for a in flags if a.startswith("--tag=")), "")
     main(*(args[:1] or []),
          *([int(args[1])] if len(args) > 1 else []),
          *([int(args[2])] if len(args) > 2 else []),
@@ -147,4 +157,4 @@ if __name__ == "__main__":
          actuator_strength="--strength" in flags,
          torque_power_weight=power, torque_power_actuators=power_on,
          joint_passives="--joints" in flags, torque_price_per_nm2=torque_price,
-         effort_blend=effort_blend, objective=objective)
+         effort_blend=effort_blend, objective=objective, tag=tag)

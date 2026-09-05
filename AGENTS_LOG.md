@@ -1492,3 +1492,8 @@ converged 3D solve lands.
 - Stage A it 0: effort objective 130 (the v6 iterate's 15-20 N.m trunk
   and arm torques are expensive at the (F/10)^3 stock-scale pricing);
   effv6b screen it 1: obj 109, inf 2.8e3, alpha 0.46 — recovering.
+- 23:05: run_continuation.py (stages effort_blend 10,3,1,0.3,0; each
+  stage's legs banked as met_blend<w>_legNN.sto via the driver's new
+  --tag) committed. Hazard noted: the untagged Stage A driver (met_legs13)
+  banks as met_leg01.sto, overwriting the v6 metabolic iterate it started
+  from — preserved as v6_metabolic_it78.sto (+ sidecar) beforehand.
