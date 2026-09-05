@@ -1497,3 +1497,14 @@ converged 3D solve lands.
   --tag) committed. Hazard noted: the untagged Stage A driver (met_legs13)
   banks as met_leg01.sto, overwriting the v6 metabolic iterate it started
   from — preserved as v6_metabolic_it78.sto (+ sidecar) beforehand.
+
+## 2026-09-05T07:05Z — main agent (Fable): never-monotone-mode prevents the barrier fallback
+
+- nomono screen (adaptive_mu_globalization never-monotone-mode, metabolic
+  v6 from met_leg01): it 39 obj 2.586, inf 17.7, mu 1e-7.3, alpha 0.03 —
+  NO fallback where the default (met_legs12 leg 1, same start) bounced mu
+  to 1e-1.3 at it 37 and blew up. The run crawls instead of diverging.
+  Adopt `adaptive_mu_globalization never-monotone-mode` (ipopt.opt via
+  launch_*.ps1 -IpoptOpts) for the metabolic continuation stages.
+- Stage A screen effv6b capped at it 30: obj 130 -> 9.44, inf 64, not
+  converged; production met_legs13 continues the same path (100-it legs).
