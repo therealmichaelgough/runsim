@@ -1680,3 +1680,7 @@ converged 3D solve lands.
   v12m75, from met_v12t2_leg01.sto (Moco interpolates the guess onto the
   finer mesh). Monitors report each leg's minimum violation. Fallback if
   the floor persists: accept the iterate at a documented 5e-2 tolerance.
+- met_legs20 (mesh 75) leg 1 (40 it): Maximum_Iterations_Exceeded, obj
+  3.3988 (finer discretization), inf 4.2e3 -> 0.49 still falling at the
+  cap — the interpolated guess re-converging; the floor question is
+  answered by leg 2's dip (~14:15). Banked met_v12m75_leg01.sto.
