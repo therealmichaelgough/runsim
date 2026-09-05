@@ -1542,3 +1542,11 @@ converged 3D solve lands.
   Screen v8 launched 00:23: passive OFF, v7 joint passives, strength,
   lumbar power 0.01, torque price 0.006, never-monotone-mode, from
   v6_metabolic_it78.sto, 30 it, 16 threads.
+- 00:11: Stage A (met_legs13) killed — not a feasible base (inf rising at
+  its cap) and it was rewriting the validated effort gait; the Sep-2
+  solution_p3d_v3_gp0.sto + grf restored from git (commit 2bd5a1f).
+  Continuation hand-off monitors stopped. met_legs14 launched on v8
+  (passive fibers OFF, v7 joint passives incl. arm-flexion/elbow limits,
+  strength, lumbar power 0.01, torque price 0.006, ipopt.opt
+  never-monotone-mode) from v6_metabolic_it78.sto, 48 threads, 100-it
+  legs x 20, guarded monitor; the v8 screen (16 threads) runs alongside.
