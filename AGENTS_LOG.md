@@ -1470,3 +1470,16 @@ converged 3D solve lands.
   from met_leg01.sto (the v6 iterate, inf ~27 under this model) with the
   effort objective; 16 threads, 30 it. Driver now takes --objective=effort
   (265106c) for Stage A production legs if the screen re-converges.
+
+## 2026-09-05T05:55Z — main agent (Fable): 50-iteration legs do not outrun the fallback; Stage A at scale
+
+- met_legs12 (v6, 50-it legs) leg 1 from met_leg01: mu bounced to 1e-1.3 at
+  it ~37, obj 2.86 -> 4.08, inf 70 -> 791; the blow-up guard KILLED the
+  driver at 22:53 before any bank. Short legs restart the same dynamics.
+  Conclusion: reach the metabolic objective by continuation (effort ->
+  metabolic), not by restarts.
+- Stage A production launched 22:54: met_legs13, effort objective on the
+  v6 model (passive fibers, strong actuators at (F/10)^3 pricing, joint
+  passives) from met_leg01.sto, 48 threads, 100-iteration legs x 10,
+  guarded monitor. Screen effv6b (same, 16 threads) gives the early
+  verdict; nomono continues (it 19, inf 31) toward its it-40 test.
