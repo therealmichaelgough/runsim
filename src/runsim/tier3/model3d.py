@@ -102,8 +102,16 @@ JOINT_PASSIVES = dict(
     knee_damping=0.5, knee_transition_deg=5.0,
     elbow_rest_deg=100.0, elbow_stiffness_nm_per_deg=0.05,
     lumbar_stiffness_nm_per_deg=2.0, lumbar_rot_stiffness_nm_per_deg=1.0,
-    lumbar_damping_nm_s_per_deg=0.02,
-    shoulder_stiffness_nm_per_deg=0.3,
+    # v11 damping: 2 N.m/deg on the upper body's ~2 kg.m^2 is a 1.2 Hz
+    # resonator and 0.3 N.m/deg on an arm's ~0.2 kg.m^2 a 1.5 Hz one — the
+    # stride frequency. At 0.02 N.m.s/deg the lumbar damping ratio was
+    # ~0.04, so the v10 iterate ran the trunk (+-12 bending, 21 extension,
+    # +-18 pelvis yaw) and arms on near-undamped springs for almost nothing.
+    # 0.25 N.m.s/deg (lumbar, ratio ~0.5) and 0.02 (shoulder, ~0.3) are the
+    # passive damping of real spines and shoulder capsules.
+    lumbar_damping_nm_s_per_deg=0.25,
+    shoulder_stiffness_nm_per_deg=0.3, shoulder_damping_nm_s_per_deg=0.02,
+    elbow_damping_nm_s_per_deg=0.01,
     hip_rot_limit_deg=15.0, hip_rot_stiffness_nm_per_deg=10.0,
     hip_rot_damping=0.5, hip_rot_transition_deg=2.0,
     # end-range limits (neutral zone inside, steep passive stiffness beyond;
@@ -133,7 +141,7 @@ def _spring(coord: str, name: str, k_nm_per_deg: float, rest_deg: float = 0.0,
     k = k_nm_per_deg * _RAD          # N.m/rad
     c = c_nm_s_per_deg * _RAD        # N.m.s/rad
     q0 = rest_deg / _RAD
-    expr = f"-{k:.6f}*(q-({q0:.6f}))" + (f"-{c:.6f}*qdot" if c else "")
+    expr = (f"-{k:.6f}*(q-({q0:.6f}))" if k else "0") + (f"-{c:.6f}*qdot" if c else "")
     f = osim.ExpressionBasedCoordinateForce(coord, expr)
     f.setName(name)
     return f
@@ -161,9 +169,14 @@ def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
         added.append(hip.getName())
         for f in (
             _spring(f"elbow_flex_{side}", f"elbow_spring_{side}",
-                    p["elbow_stiffness_nm_per_deg"], p["elbow_rest_deg"]),
-            _spring(f"arm_add_{side}", f"shoulder_spring_add_{side}", p["shoulder_stiffness_nm_per_deg"]),
-            _spring(f"arm_rot_{side}", f"shoulder_spring_rot_{side}", p["shoulder_stiffness_nm_per_deg"]),
+                    p["elbow_stiffness_nm_per_deg"], p["elbow_rest_deg"],
+                    p["elbow_damping_nm_s_per_deg"]),
+            _spring(f"arm_add_{side}", f"shoulder_spring_add_{side}",
+                    p["shoulder_stiffness_nm_per_deg"], 0.0, p["shoulder_damping_nm_s_per_deg"]),
+            _spring(f"arm_rot_{side}", f"shoulder_spring_rot_{side}",
+                    p["shoulder_stiffness_nm_per_deg"], 0.0, p["shoulder_damping_nm_s_per_deg"]),
+            _spring(f"arm_flex_{side}", f"shoulder_damper_flex_{side}",
+                    0.0, 0.0, p["shoulder_damping_nm_s_per_deg"]),
         ):
             model.addForce(f)
             added.append(f.getName())

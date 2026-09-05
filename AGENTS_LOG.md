@@ -1582,3 +1582,21 @@ converged 3D solve lands.
   numerics, wrong amplitudes; its leg-1 iterate remains met_leg01.sto).
   Production v10 (met_legs15) launches next from the v9 screen iterate
   (torque price 0.03, lumbar power 0.05, never-monotone-mode, 64 threads).
+
+## 2026-09-05T12:00Z — main agent (Fable): v10 leg 1 — resonant passive trunk/arms; v11 = physiological damping
+
+- met_legs15 (v10) leg 1 (100 it): obj 3.034 = met 2.570 + muscle effort
+  0.085 + torque 0.355 + lumbar power 0.024; inf 25.6 (13.5 at it 75);
+  3.03 Hz, 2.21 BW; pinned 0; arms 6-7 N.m, lumbar power 3-8 W. Ranges:
+  pelvis list +-4 (human), pelvis rotation -17..+20, hip rotation +-15,
+  lumbar bending +-12, extension -21..0, rotation +-9, arm flexion
+  -68..+39, elbows 37-117.
+- Mechanism of the remaining 2x amplitudes: the torques are SMALL — the
+  trunk and arms oscillate passively on their springs. 2 N.m/deg on the
+  upper body (~2 kg.m^2) resonates at ~1.2 Hz and 0.3 N.m/deg on an arm
+  (~0.2 kg.m^2) at ~1.5 Hz, i.e. the stride frequency; lumbar damping
+  0.02 N.m.s/deg gave a damping ratio ~0.04.
+- v11: lumbar damping 0.25 N.m.s/deg (ratio ~0.5), shoulder springs +
+  0.02 damping incl. a pure damper on arm flexion, elbow 0.01. 25 passive
+  elements. Production met_legs16 (64 threads) from the v10 leg-1 iterate
+  with the same prices; v10 leg 2 killed at 04:55 (it ~10).

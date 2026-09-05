@@ -20,8 +20,8 @@ def model():
 
 
 PASSIVE_PREFIXES = ("knee_limit_", "hip_rot_limit_", "elbow_spring_", "shoulder_spring_",
-                    "lumbar_spring_", "shoulder_add_limit_", "shoulder_rot_limit_",
-                    "shoulder_flex_limit_", "elbow_limit_",
+                    "shoulder_damper_", "lumbar_spring_", "shoulder_add_limit_",
+                    "shoulder_rot_limit_", "shoulder_flex_limit_", "elbow_limit_",
                     "lumbar_bend_limit", "lumbar_rot_limit")
 
 
@@ -33,10 +33,10 @@ def test_forces_present_only_when_requested(model):
     plain = build_running_model(MODEL)
     assert not any(n.startswith(PASSIVE_PREFIXES) for n in _names(plain))
     added = [n for n in _names(model) if n.startswith(PASSIVE_PREFIXES)]
-    # 2 knees + 2 hips + 2 elbow springs + 4 shoulder springs + 3 lumbar
-    # springs + 6 shoulder end-range limits + 2 elbow end-range limits
-    # + 2 lumbar end-range limits
-    assert len(added) == 23
+    # 2 knees + 2 hips + 2 elbow springs + 4 shoulder springs + 2 shoulder
+    # flexion dampers + 3 lumbar springs + 6 shoulder end-range limits
+    # + 2 elbow end-range limits + 2 lumbar end-range limits
+    assert len(added) == 25
     assert {"lumbar_spring_extension", "lumbar_spring_bending", "lumbar_spring_rotation",
             "shoulder_spring_add_r", "shoulder_spring_rot_l", "hip_rot_limit_r",
             "shoulder_add_limit_l", "shoulder_rot_limit_r", "shoulder_flex_limit_r",
@@ -121,3 +121,19 @@ def test_elbow_spring_restores_toward_rest_angle(model):
     expected = JOINT_PASSIVES["elbow_stiffness_nm_per_deg"] * 50.0
     assert torque_at(50.0) == pytest.approx(expected, rel=1e-3)     # flexing torque
     assert torque_at(150.0) == pytest.approx(-expected, rel=1e-3)   # extending torque
+
+
+def test_shoulder_flexion_damper_is_pure_damping(model):
+    """No spring on arm flexion (the swing is predicted), only damping:
+    0.02 N.m.s/deg -> -2 N.m at 100 deg/s, zero at rest anywhere."""
+    state = model.initSystem()
+    coord = model.getCoordinateSet().get("arm_flex_r")
+    damper = osim.ExpressionBasedCoordinateForce.safeDownCast(
+        model.getForceSet().get("shoulder_damper_flex_r"))
+    coord.setValue(state, math.radians(-40.0)); coord.setSpeedValue(state, 0.0)
+    model.realizeDynamics(state)
+    assert damper.calcExpressionForce(state) == pytest.approx(0.0, abs=1e-9)
+    coord.setSpeedValue(state, math.radians(100.0))
+    model.realizeDynamics(state)
+    assert damper.calcExpressionForce(state) == pytest.approx(
+        -100.0 * JOINT_PASSIVES["shoulder_damping_nm_s_per_deg"], rel=1e-3)
