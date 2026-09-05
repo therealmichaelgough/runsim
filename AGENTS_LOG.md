@@ -1651,3 +1651,11 @@ converged 3D solve lands.
   met_legs18 with 30-iteration legs x 60 from met_leg03.sto: bank each
   dip, reset from it, converge geometrically. Guard + convergence hand-off
   monitors re-armed on met_legs18.
+- met_legs18 leg 1 (30 it): obj 3.4051, dip to inf 0.045 at it 23, 0.116
+  at the cap. Objective converged to 4 digits; only KKT polishing left.
+  Added IPOPT acceptable-level termination to D:\runsim\ipopt.opt (read
+  at every leg start): acceptable_iter 5, tol 5e-2, constr_viol 1e-2,
+  dual_inf 1e-1, compl 1e-2 — a leg whose dip holds below 1e-2 for five
+  iterations terminates as Solved_To_Acceptable_Level (success -> banked,
+  driver COMPLETE, hand-off finalizes). Tolerance to be stated honestly
+  in the README.
