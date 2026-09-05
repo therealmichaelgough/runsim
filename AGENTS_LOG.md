@@ -1353,3 +1353,18 @@ converged 3D solve lands.
   joint passives, passive fibers. Screen v5 launched 18:52 (16 threads,
   30 it) from lpj2's iterate; met_legs8 (v4) continues at 64 threads.
   Decision: pinned count and the pelvis/lumbar/arm ranges vs human.
+
+## 2026-09-05T02:30Z — main agent (Fable): met_legs8 (v4) diverged at it ~60; killed
+
+- met_legs8 leg 1 (joint passives v1 + passive fibers + strength + lumbar
+  power, activation-space weight 50) from met_leg01: obj 2.53 -> 10.86,
+  inf 2.0e3, mu bounced to 1e-1.3 with inertia regularization by it 64 —
+  diverged through large steps (the tiny-step guard did not fire).
+  Killed 19:29. v4 is dead; no leg banked (met_leg01 remains the last
+  good v3 iterate).
+- v5 screen (torque price 0.006/(N.m)^2, springs 2/2/1 + 0.3, joints,
+  passive fibers, lumbar power 0.01) at it 11: obj 2.97, inf 15, alpha
+  0.13 — harvest at ~it 20 (~19:50) for ranges/pinning; if sound, it
+  becomes production (met_legs9) from its own iterate.
+- Next monitor adds a blow-up guard: objective > 1.5x the leg's running
+  minimum with inf_pr > 100 -> kill.
