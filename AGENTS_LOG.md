@@ -1634,3 +1634,7 @@ converged 3D solve lands.
   deg (human ~80-90 at 3 m/s) — a low-lift gait; arm flexion sweep ~100
   deg (human ~60). Numerically sound; revisit after convergence.
 - Leg 2 running from met_leg01.sto (v12); gate keyed on the v12 passives.
+- v12 leg 2 (100 it): obj 3.4118, inf 1.84 -> 1.18, 2.97 Hz, 2.37 BW,
+  muscle COT 2.895; banked (met_leg02.sto). Leg 3 running. Feasibility
+  falls ~1.5x per 100-iteration leg — formal convergence may need 10+
+  legs (~85 min each); letting it run under the guards.
