@@ -125,6 +125,15 @@ survey/plan.
   formulation v9/v10): at 3 N.m/deg with 5-deg transitions the joints
   rode 5-7 deg into every limit and the trunk/pelvis oscillated at 2-3x
   human amplitude to save muscle cost.
+- **Passive springs need physiological damping or the optimizer drives
+  them at resonance.** The lumbar springs on the upper body and the
+  shoulder springs on the arms have natural frequencies at the stride
+  frequency; at damping ratio ~0.04 the metabolic objective ran the trunk
+  and arms as free oscillators at 2-3x human amplitude (v10). Lumbar
+  0.25 N.m.s/deg (ratio ~0.5) and shoulder 0.02 (~0.3) fixed it (v11):
+  trunk oscillations 3-8 deg, lumbar power 1-4 W, muscle cost back at
+  2.9 J/kg/m with a 2.96 Hz, 2.5 BW gait. Check `evaluate_screen.py`'s
+  joint ranges against Hamner, not just its pinned list.
 - **Keep DGF passive fiber forces OFF in the 3D running model** (the
   Falisse/Dembia recipe): every 2026-09-04 run with them on crawled at
   violation 20-100 for hundreds of iterations, every run with them off
