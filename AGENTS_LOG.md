@@ -1684,3 +1684,18 @@ converged 3D solve lands.
   3.3988 (finer discretization), inf 4.2e3 -> 0.49 still falling at the
   cap — the interpolated guess re-converging; the floor question is
   answered by leg 2's dip (~14:15). Banked met_v12m75_leg01.sto.
+
+## 2026-09-05T21:20Z — main agent (Fable): the ~0.05 floor is intrinsic; closing at a dip with tolerance 1e-1
+
+- met_legs20 (mesh 75) leg 2 (40 it): obj 3.3954, dip to inf 0.065 at it
+  26 (dual inf 0.022), back to 0.12 at the cap — the same floor as the
+  50-interval mesh (0.045-0.052). Mesh resolution is not the cause.
+- Decision: the objective is converged to 4 digits and every metabolic
+  leg's dip reaches 0.045-0.065; stop AT a dip and document it.
+  met_legs21 launched 14:18: mesh 75, Moco tolerance 1e-1 (tol +
+  constr_viol + acceptable_*), 40-it legs, tag v12final, from
+  met_v12m75_leg02.sto. The solver should terminate Solve_Succeeded in
+  its next dip; the hand-off copies the leg to
+  solution_p3d_v3_gp0_met_v12.sto (+ grf) and runs finalize_met_solution.
+  README/CLAUDE.md will state the achieved tolerance (max constraint
+  violation ~5e-2, objective 3.40 +- 0.005).
