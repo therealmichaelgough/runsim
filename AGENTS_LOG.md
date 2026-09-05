@@ -1411,3 +1411,20 @@ converged 3D solve lands.
   actuators + joint passives (knee/hip limits, elbow springs, lumbar and
   shoulder springs, end-range limits) + lumbar power 0.01 + torque price
   0.006/(N.m)^2.
+
+## 2026-09-05T04:45Z — main agent (Fable): v6 leg 1 stopped at it 78 before the barrier fallback; short legs + option screens
+
+- met_legs10 (v6) it 67-76: obj ~2.66, inf ~25 flat, alpha 1e-3..1e-1,
+  mu 1e-7.7 (adaptive collapse); it 77-78: mu bounced to 1e-1.8, ||d||
+  2e3, alpha 3e-5 'f' — the fallback that preceded every blow-up today.
+  Sentinel deleted at 21:46: banks the current iterate (obj 2.671, leg
+  min 2.641) as met_leg01.sto (v6 formulation key).
+- Pattern across v3-v6: after a barrier reset the run improves for ~50-70
+  iterations, the adaptive mu collapses while inf_pr is still 1-25, the
+  steps shrink, and IPOPT's adaptive globalization falls back to monotone
+  mode with a large mu that destroys the iterate. Bound pinning made it
+  worse but is no longer the cause (v6 has none).
+- Plan: (1) production with 50-iteration legs (bank before each collapse;
+  restart tax is ~3 min setup + a few iterations); (2) screen IPOPT
+  options from met_leg01: adaptive_mu_globalization never-monotone-mode
+  (no fallback), mu_oracle loqo (centrality-based mu), 16 threads each.
