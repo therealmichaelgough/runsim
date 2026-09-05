@@ -1564,3 +1564,21 @@ converged 3D solve lands.
 - v9: JOINT_PASSIVES defaults -> limit stiffness 10 N.m/deg, transition
   2 deg, hip rotation +-15 (10 N.m/deg); screen with torque price 0.03
   and lumbar power 0.05 (5x). Production v8 leg 2 continues meanwhile.
+
+## 2026-09-05T10:25Z — main agent (Fable): v9 verdict; v10 (lumbar limits at running ranges) to production
+
+- v9 screen (stiff limits 10 N.m/deg + 2-deg transitions, hip rotation
+  +-15, torque price 0.03, lumbar power 0.05) harvested at it 20 from the
+  v8 iterate: obj 3.531 = met 2.579 + muscle effort 0.093 + torque 0.789
+  + lumbar power 0.070; inf 17; pinned 0; 3.11 Hz, 1.98 BW, contact 242
+  ms. Hip rotation +-16 (was +-27), pelvis list +-7 (was +-9), lumbar
+  power 10 W (was 35), arms 10 N.m. Still high: pelvis rotation -21..+25,
+  lumbar bending +-14.5 (limit 10), lumbar rotation +-15 (limit 15), arm
+  flexion -67..+39, lumbar extension -20..+4.
+- Mechanism for the pelvis yaw: the trunk counter-rotates +-15 at the
+  lumbar limit against a +-8 trunk yaw -> +-23 pelvis yaw. v10 = v9 with
+  lumbar rotation limit +-8 and bending +-6 (running spine ranges).
+- met_legs14 (v8) killed at 03:24 during leg 2 (it 47, inf 2.5 — good
+  numerics, wrong amplitudes; its leg-1 iterate remains met_leg01.sto).
+  Production v10 (met_legs15) launches next from the v9 screen iterate
+  (torque price 0.03, lumbar power 0.05, never-monotone-mode, 64 threads).
