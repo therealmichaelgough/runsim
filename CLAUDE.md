@@ -121,6 +121,26 @@ survey/plan.
   `build_running_model(joint_passives=True)`, formulation v6, 2026-09-04)
   gave an iterate with no coordinate on a bound. Check
   `evaluate_screen.py`'s pinned list before trusting any 3D iterate.
+  Limits must be stiff and sharp (10 N.m/deg beyond a 2-deg transition,
+  formulation v9/v10): at 3 N.m/deg with 5-deg transitions the joints
+  rode 5-7 deg into every limit and the trunk/pelvis oscillated at 2-3x
+  human amplitude to save muscle cost.
+- **Keep DGF passive fiber forces OFF in the 3D running model** (the
+  Falisse/Dembia recipe): every 2026-09-04 run with them on crawled at
+  violation 20-100 for hundreds of iterations, every run with them off
+  reached single-digit violation within ~20 iterations. Restoring torques
+  come from the joint passives instead.
+- **`adaptive_mu_globalization never-monotone-mode` (ipopt.opt via
+  `launch_legs.ps1 -IpoptOpts`) prevents the barrier fallback** that
+  ruined every metabolic restart (mu bouncing from 1e-7 to 1e-1.3 with a
+  1e3-norm direction, objective and violation exploding). With it the
+  solver crawls instead of diverging; it does not make the crawl fast.
+  `mu_target`, `mu_min`, `mu_strategy monotone` and `mu_oracle loqo`
+  all failed (measured).
+- **The leg driver's working solution now carries a `_legs` suffix**:
+  its default effort label once overwrote the validated Sep-2 effort gait
+  `solution_p3d_v3_gp0.sto` (restored from git). Never let a driver write
+  under a hand-run solution's name.
 - **Every MocoOutputGoal is a finite-differenced callback.** Thirteen
   power goals made problem setup 3.5x slower and iterations several times
   slower; three (lumbar only, `torque_power_actuators=("lumbar",)`) cost
