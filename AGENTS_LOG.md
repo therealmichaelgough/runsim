@@ -1600,3 +1600,23 @@ converged 3D solve lands.
   0.02 damping incl. a pure damper on arm flexion, elbow 0.01. 25 passive
   elements. Production met_legs16 (64 threads) from the v10 leg-1 iterate
   with the same prices; v10 leg 2 killed at 04:55 (it ~10).
+
+## 2026-09-05T13:25Z — main agent (Fable): v11 leg 1 was DISCARDED by the gate (key bug) and re-run in a loop
+
+- met_legs16 (v11) leg 1 (100 it): obj 3.475, muscle COT 2.916, 2.96 Hz,
+  contact 248 ms, 27% flight, 2.57 BW — the most human-like numbers yet.
+  But the driver's formulation key held joint_passives=True only, so the
+  leg was gated against v10's 3.034 (same key), judged DEGRADED, not
+  banked, and leg 2 re-ran the identical problem. Driver killed at 06:22;
+  the leg-1 iterate preserved from the working solution as v11_leg1.sto
+  (+ sidecar). Fix: the key now carries an md5 of JOINT_PASSIVES and each
+  row records the parameters; a "[leg N DEGRADED ...]" line is printed.
+- v11 leg-1 iterate (v11_leg1.sto, obj 3.475 = met 2.907 + muscle effort
+  0.102 + torque 0.463 + lumbar power 0.003; inf 18.2 at it 100): the
+  damping worked. Lumbar extension -8..-5 (3-deg oscillation, forward
+  lean), bending +-7.6, rotation +-2.5, pelvis list +-3, lumbar power
+  1-4 W; pelvis rotation -17..+11, hip rotation -12..+16 (at the +-15
+  limits), arm flexion -64..+35, elbows 39-104, arms ~9-10 N.m. Muscle
+  COT 2.91 J/kg/m, 2.96 Hz, 248 ms contact, 2.57 BW. PINNED 2: both
+  ankles on the problem bound (+30 plantarflexion). v12 = v11 + ankle
+  end-range limits (-30..40) with the problem bound widened to -40..50.

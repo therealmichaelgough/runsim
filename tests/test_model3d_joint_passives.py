@@ -22,7 +22,7 @@ def model():
 PASSIVE_PREFIXES = ("knee_limit_", "hip_rot_limit_", "elbow_spring_", "shoulder_spring_",
                     "shoulder_damper_", "lumbar_spring_", "shoulder_add_limit_",
                     "shoulder_rot_limit_", "shoulder_flex_limit_", "elbow_limit_",
-                    "lumbar_bend_limit", "lumbar_rot_limit")
+                    "ankle_limit_", "lumbar_bend_limit", "lumbar_rot_limit")
 
 
 def _names(m):
@@ -35,8 +35,12 @@ def test_forces_present_only_when_requested(model):
     added = [n for n in _names(model) if n.startswith(PASSIVE_PREFIXES)]
     # 2 knees + 2 hips + 2 elbow springs + 4 shoulder springs + 2 shoulder
     # flexion dampers + 3 lumbar springs + 6 shoulder end-range limits
-    # + 2 elbow end-range limits + 2 lumbar end-range limits
-    assert len(added) == 25
+    # + 2 elbow end-range limits + 2 ankle end-range limits
+    # + 2 lumbar end-range limits
+    assert len(added) == 27
+    ankle = osim.CoordinateLimitForce.safeDownCast(model.getForceSet().get("ankle_limit_r"))
+    assert ankle.get_coordinate() == "ankle_angle_r"
+    assert (ankle.get_lower_limit(), ankle.get_upper_limit()) == JOINT_PASSIVES["ankle_limits_deg"]
     assert {"lumbar_spring_extension", "lumbar_spring_bending", "lumbar_spring_rotation",
             "shoulder_spring_add_r", "shoulder_spring_rot_l", "hip_rot_limit_r",
             "shoulder_add_limit_l", "shoulder_rot_limit_r", "shoulder_flex_limit_r",

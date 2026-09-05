@@ -97,6 +97,10 @@ RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
 #:   metabolic objective swung the arms to the flexion bound and an elbow
 #:   to its bound (nomono iterate, 2026-09-04). The weak elbow posture
 #:   spring stays for the neutral zone.
+#: - ankle_limit_*: end-range limits at -30 (dorsiflexion) and 40 deg
+#:   (plantarflexion) — with passive fiber forces off nothing else stops
+#:   the ankle, and the v11 iterate rested both ankles on the problem
+#:   bound (2026-09-05). The problem bound itself is widened past them.
 JOINT_PASSIVES = dict(
     knee_lower_deg=5.0, knee_upper_deg=120.0, knee_stiffness_nm_per_deg=5.0,
     knee_damping=0.5, knee_transition_deg=5.0,
@@ -121,6 +125,7 @@ JOINT_PASSIVES = dict(
     shoulder_rot_limits_deg=(-45.0, 30.0),
     shoulder_flex_limits_deg=(-60.0, 30.0),  # running swing -45..+15 (Hamner 2010)
     elbow_limits_deg=(40.0, 145.0),          # runners hold 110-130 deg; never straight
+    ankle_limits_deg=(-30.0, 40.0),          # v12: dorsiflexion .. plantarflexion end range
     lumbar_bend_limit_deg=6.0,   # v10: running lumbar bending ~+-5 deg
     lumbar_rot_limit_deg=8.0,    # v10: the v9 iterate counter-rotated the trunk +-15
                                  # against a +-8 trunk yaw, giving +-23 of pelvis yaw
@@ -199,6 +204,7 @@ def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
         limits.append((f"arm_rot_{side}", f"shoulder_rot_limit_{side}", *p["shoulder_rot_limits_deg"]))
         limits.append((f"arm_flex_{side}", f"shoulder_flex_limit_{side}", *p["shoulder_flex_limits_deg"]))
         limits.append((f"elbow_flex_{side}", f"elbow_limit_{side}", *p["elbow_limits_deg"]))
+        limits.append((f"ankle_angle_{side}", f"ankle_limit_{side}", *p["ankle_limits_deg"]))
     for coord, name, lo, hi in limits:
         f = osim.CoordinateLimitForce(coord, hi, ks, lo, ks, cd, tr)
         f.setName(name)

@@ -11,6 +11,7 @@ Usage: run_met_legs.py [start_solution] [leg_iters] [max_legs]
 Defaults: solution_p3d_v3_gp0_met.sto (the capped first leg's output),
 300, 12. Stops early when a leg converges (success=True).
 """
+import hashlib
 import json
 import shutil
 import sys
@@ -18,7 +19,7 @@ import time
 from pathlib import Path
 
 from runsim.tier3 import solution_summary
-from runsim.tier3.model3d import RUNNING_ACTUATOR_STRENGTH
+from runsim.tier3.model3d import JOINT_PASSIVES, RUNNING_ACTUATOR_STRENGTH
 from runsim.tier3.predict3d import gait_label, predict_gait_3d, strength_sidecar
 
 HERE = Path(__file__).resolve().parent
@@ -46,6 +47,11 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
     if not guess.exists():
         raise SystemExit(f"start solution missing: {guess}")
     strength = RUNNING_ACTUATOR_STRENGTH if actuator_strength else None
+    # the joint-passive PARAMETERS are part of the formulation: v10 and v11
+    # differed only in them, and a bool key let v11's leg 1 be judged
+    # against v10's objective, discarded, and re-run in a loop (2026-09-05)
+    passives_key = (hashlib.md5(json.dumps(JOINT_PASSIVES, sort_keys=True).encode()).hexdigest()[:8]
+                    if joint_passives else None)
     log = json.loads(LOG.read_text()) if LOG.exists() else []
     # gate baseline: best objective already recorded for this FORMULATION
     # (same torque weight, passive-force, actuator-strength and power-price
@@ -56,7 +62,7 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
                        actuator_strength=strength,
                        torque_power_weight=torque_power_weight,
                        torque_power_actuators=list(torque_power_actuators) if torque_power_actuators else None,
-                       joint_passives=joint_passives,
+                       joint_passives=passives_key,
                        torque_price_per_nm2=torque_price_per_nm2,
                        effort_blend=effort_blend)
     prev_objs = [r["objective"] for r in log
@@ -103,9 +109,12 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
         # violation), and chaining from it compounds the damage.
         if prev_obj is not None and r.objective > prev_obj * 1.05:
             stats["verdict"] = "DEGRADED - discarded, re-running from prior"
+            stats["joint_passive_params"] = JOINT_PASSIVES if joint_passives else None
             log.append(stats)
             LOG.write_text(json.dumps(log, indent=2))
             print(json.dumps(stats), flush=True)
+            print(f"[leg {leg} DEGRADED: {r.objective:.4f} > 1.05 x {prev_obj:.4f} - discarded, "
+                  f"retrying from {guess.name}]", flush=True)
             continue  # guess unchanged -> barrier-reset retry from prior good
 
         # bank this leg under its own name, then chain from it — with its
@@ -118,6 +127,7 @@ def main(start: str = "solution_p3d_v3_gp0_met.sto",
             shutil.copyfile(side, strength_sidecar(banked))
         last_banked = banked
         stats["banked"] = banked.name
+        stats["joint_passive_params"] = JOINT_PASSIVES if joint_passives else None
         log.append(stats)
         LOG.write_text(json.dumps(log, indent=2))
         print(json.dumps(stats), flush=True)

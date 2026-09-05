@@ -209,8 +209,10 @@ def _set_running_bounds(problem: osim.MocoProblem, grade: float) -> None:
         # Rajagopal knee convention: flexion positive
         problem.setStateInfo(f"/jointset/walker_knee_{side}/knee_angle_{side}/value",
                              [0, 120 * D2R])
+        # wider than the ankle end-range limit forces (-30..40 deg, model3d
+        # JOINT_PASSIVES) so the limit force, not the bound, stops the ankle
         problem.setStateInfo(f"/jointset/ankle_{side}/ankle_angle_{side}/value",
-                             [-38 * D2R, 30 * D2R])
+                             [-40 * D2R, 50 * D2R])
     problem.setStateInfo("/jointset/back/lumbar_extension/value",
                          [-35 * D2R, 10 * D2R])
     # The model ships arm coordinates with +-10 rad ranges; unbounded arms
