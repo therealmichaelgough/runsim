@@ -69,7 +69,10 @@ MASS = 75.16
 
 def solution_metrics(sto: Path, torque_weight: float,
                      strength: dict | None = None, power_weight: float | None = None,
-                     power_on: tuple | None = None) -> dict:
+                     power_on: tuple | None = None,
+                     torque_price: float | None = None) -> dict:
+    """torque_price (per (N.m)^2) makes each actuator's control weight
+    price * F^2, as predict3d does; otherwise torque_weight applies to all."""
     import opensim as osim
     traj = osim.MocoTrajectory(str(sto))
     t = traj.getTime().to_numpy()
@@ -103,9 +106,9 @@ def solution_metrics(sto: Path, torque_weight: float,
         integ = float(np.trapezoid(u * u, t))
         short = name.split("/")[-1]
         if any(k in name for k in TORQUE_KEYS):
-            It += integ
-            torque_rms[short] = round(float(np.sqrt(np.mean(u * u))), 3)
             F = optimal_force(short)
+            It += integ * ((torque_price * F * F / torque_weight) if torque_price is not None and torque_weight else 1.0)
+            torque_rms[short] = round(float(np.sqrt(np.mean(u * u))), 3)
             torque_nm_rms[short] = round(float(np.sqrt(np.mean(u * u))) * F, 1)
             if power_weight is not None and short in ACTUATOR_COORD and (
                     power_on is None or short.startswith(tuple(power_on))):
@@ -140,7 +143,8 @@ def main(torque_weight: float = 50.0) -> None:
                 w = r.get("torque_weight", torque_weight) or 0.0
                 m = solution_metrics(sol, w, r.get("actuator_strength"),
                                      r.get("torque_power_weight"),
-                                     tuple(r["torque_power_actuators"]) if r.get("torque_power_actuators") else None)
+                                     tuple(r["torque_power_actuators"]) if r.get("torque_power_actuators") else None,
+                                     r.get("torque_price_per_nm2"))
                 m["met"] = round(r["objective"] - m["muscle_effort"] - m["torque_effort"] - m["power_term"], 4)
                 out.update(m)
         print(json.dumps(out, indent=1))

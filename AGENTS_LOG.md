@@ -1373,3 +1373,24 @@ converged 3D solve lands.
   harvest (~19:50) shows the arms/trunk still on their bounds. Monitor
   bsxywuxkx: blow-up (obj > 1.5x leg minimum with inf > 100), tiny-step
   and restoration guards all kill the driver rather than bank.
+
+## 2026-09-05T02:45Z — main agent (Fable): v5 verdict; metabolics checked; v6 = end-range limits
+
+- v5 harvested at it 16: obj 2.886, COT (muscles) 2.33, 3.19 Hz, 2.29 BW;
+  pinned 5 (lumbar_bending +-20, arm_add -60..+30, arm_rot -90..+38).
+  Lumbar extension freed (-14..+5), elbows 40-135, knees 3-63.
+  Shoulder rotation torque 16 N.m rms (u 0.54 of 30): the optimizer PAYS
+  ~0.3 objective units to keep sweeping the arms — the sweep is wanted
+  (angular-momentum balance in wide arcs), not free.
+- Metabolics sanity: Bhargava defaults forbid negative per-muscle total
+  power (include_negative_mechanical_work on, forbid_negative_total_power
+  on); v5 total rate 263-1125 W, mean 527 W = 2.33 J/kg/m. No negative-
+  work exploit. (My evaluator's "met 1.34" used the wrong weights for
+  v5's per-actuator pricing — fixed: torque_price -> price*F^2 weights.)
+- Modeling gap: linear springs (18 N.m at 60 deg) cannot hold against a
+  60 N.m actuator; real shoulders/spines are soft in a neutral zone and
+  steep beyond. v6 adds end-range CoordinateLimitForces at running ranges:
+  arm_add [-30, 15], arm_rot [-45, 30], lumbar_bending +-10, lumbar_rotation
+  +-15, 3 N.m/deg beyond, 5-deg transition. 19 passive elements total.
+- met_legs9 (v5) keeps running as the best available until the v6 screen
+  (from v5's iterate) reports.

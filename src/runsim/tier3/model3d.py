@@ -84,6 +84,13 @@ RUNNING_ACTUATOR_STRENGTH: dict[str, float] = {
 #:   predicted. 0.05 N.m/deg left both coordinates sweeping their bounds.
 #: - hip_rot_limit_*: CoordinateLimitForce at +-25 deg hip rotation
 #:   (5 N.m/deg beyond, 5-deg transition), the ligamentous end range.
+#: - shoulder_add/rot_limit_*, lumbar_bend/rot_limit: end-range limit
+#:   forces (3 N.m/deg beyond the physiological running range: shoulder
+#:   abduction 30 / adduction 15 deg, rotation -45..30, lumbar bending
+#:   +-10, rotation +-15). With linear springs alone the v5 iterate still
+#:   swept 60 deg of abduction and 90 deg of rotation: a 60 N.m actuator
+#:   overrides an 18 N.m spring, while a real shoulder's passive stiffness
+#:   rises steeply at end range (Panjabi 1992 neutral zone for the spine).
 JOINT_PASSIVES = dict(
     knee_lower_deg=5.0, knee_upper_deg=120.0, knee_stiffness_nm_per_deg=5.0,
     knee_damping=0.5, knee_transition_deg=5.0,
@@ -93,6 +100,15 @@ JOINT_PASSIVES = dict(
     shoulder_stiffness_nm_per_deg=0.3,
     hip_rot_limit_deg=25.0, hip_rot_stiffness_nm_per_deg=5.0,
     hip_rot_damping=0.5, hip_rot_transition_deg=5.0,
+    # end-range limits (neutral zone inside, steep passive stiffness beyond;
+    # Panjabi 1992 for the spine, capsular end-range for the shoulder):
+    # ranges are the physiological running ranges, not anatomical maxima
+    shoulder_add_limits_deg=(-30.0, 15.0),   # 30 deg abduction .. 15 adduction
+    shoulder_rot_limits_deg=(-45.0, 30.0),
+    lumbar_bend_limit_deg=10.0,
+    lumbar_rot_limit_deg=15.0,
+    range_limit_stiffness_nm_per_deg=3.0, range_limit_damping=0.2,
+    range_limit_transition_deg=5.0,
 )
 _RAD = 180.0 / 3.141592653589793
 
@@ -144,6 +160,21 @@ def add_joint_passives(model: osim.Model, p: dict | None = None) -> list[str]:
                     k, 0.0, p["lumbar_damping_nm_s_per_deg"])
         model.addForce(f)
         added.append(f.getName())
+    # end-range limits: the neutral zone stays soft, beyond it stiffness rises
+    ks, cd, tr = (p["range_limit_stiffness_nm_per_deg"], p["range_limit_damping"],
+                  p["range_limit_transition_deg"])
+    limits = [("lumbar_bending", "lumbar_bend_limit",
+               -p["lumbar_bend_limit_deg"], p["lumbar_bend_limit_deg"]),
+              ("lumbar_rotation", "lumbar_rot_limit",
+               -p["lumbar_rot_limit_deg"], p["lumbar_rot_limit_deg"])]
+    for side in ("r", "l"):
+        limits.append((f"arm_add_{side}", f"shoulder_add_limit_{side}", *p["shoulder_add_limits_deg"]))
+        limits.append((f"arm_rot_{side}", f"shoulder_rot_limit_{side}", *p["shoulder_rot_limits_deg"]))
+    for coord, name, lo, hi in limits:
+        f = osim.CoordinateLimitForce(coord, hi, ks, lo, ks, cd, tr)
+        f.setName(name)
+        model.addForce(f)
+        added.append(name)
     return added
 
 
